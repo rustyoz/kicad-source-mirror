@@ -27,7 +27,7 @@
 
 #include <board_item_container.h>
 #include <board_stackup_manager/board_stackup.h>
-#include <component_class_manager.h>
+#include <component_classes/component_class_manager.h>
 #include <embedded_files.h>
 #include <common.h> // Needed for stl hash extensions
 #include <convert_shape_list_to_polygon.h> // for OUTLINE_ERROR_HANDLER
@@ -609,6 +609,7 @@ public:
      * @return the enabled layers in bit-mapped form.
      */
     LSET GetEnabledLayers() const;
+    LSET GetLayerSet() const override { return GetEnabledLayers(); }
 
     /**
      * A proxy function that calls the correspondent function in m_BoardSettings.
@@ -616,6 +617,7 @@ public:
      * @param aLayerMask the new bit-mask of enabled layers.
      */
     void SetEnabledLayers( LSET aLayerMask );
+    void SetLayerSet( const LSET& aLayerMask ) override { SetEnabledLayers( aLayerMask ); }
 
     /**
      * A proxy function that calls the correspondent function in m_BoardSettings
@@ -1003,6 +1005,11 @@ public:
     void SynchronizeNetsAndNetClasses( bool aResetTrackAndViaSizes );
 
     /**
+     * Copy component class / component class generator information from the project settings
+     */
+    bool SynchronizeComponentClasses( const std::unordered_set<wxString>& aNewSheetPaths ) const;
+
+    /**
      * Copy the current project's text variables into the boards property cache.
      */
     void SynchronizeProperties();
@@ -1300,7 +1307,7 @@ public:
     /**
      * Gets the component class manager
      */
-    COMPONENT_CLASS_MANAGER& GetComponentClassManager() { return m_componentClassManager; }
+    COMPONENT_CLASS_MANAGER& GetComponentClassManager() { return *m_componentClassManager; }
 
     PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::BOARD; }
 
@@ -1420,7 +1427,7 @@ private:
 
     bool                         m_embedFonts;
 
-    COMPONENT_CLASS_MANAGER m_componentClassManager;
+    std::unique_ptr<COMPONENT_CLASS_MANAGER> m_componentClassManager;
 };
 
 

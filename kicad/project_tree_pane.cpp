@@ -68,6 +68,7 @@
 #include <git/git_sync_handler.h>
 #include <git/git_clone_handler.h>
 #include <git/kicad_git_compat.h>
+#include <git/kicad_git_memory.h>
 
 #include <dialogs/git/dialog_git_repository.h>
 
@@ -193,8 +194,9 @@ PROJECT_TREE_PANE::PROJECT_TREE_PANE( KICAD_MANAGER_FRAME* parent ) :
     m_selectedItem = nullptr;
     m_watcherNeedReset = false;
     m_gitLastError = GIT_ERROR_NONE;
-
     m_watcher = nullptr;
+    m_gitIconsInitialized = false;
+
     Bind( wxEVT_FSWATCHER,
              wxFileSystemWatcherEventHandler( PROJECT_TREE_PANE::onFileSystemEvent ), this );
 
@@ -388,22 +390,19 @@ static git_repository* get_git_repository_for_file( const char* filename )
     git_buf         repo_path = GIT_BUF_INIT;
 
     // Find the repository path for the given file
-    if( git_repository_discover( &repo_path, filename, 0, NULL ) )
+    if( git_repository_discover( &repo_path, filename, 0, NULL ) != GIT_OK )
     {
-#if 0
-        printf( "get_git_repository_for_file: %s\n", git_error_last()->message ); fflush( 0 );
-#endif
+        wxLogTrace( traceGit, "Can't repo discover %s: %s", filename, KIGIT_COMMON::GetLastGitError() );
         return nullptr;
     }
 
-    if( git_repository_open( &repo, repo_path.ptr ) )
+    KIGIT::GitBufPtr repo_path_ptr( &repo_path );
+
+    if( git_repository_open( &repo, repo_path.ptr ) != GIT_OK )
     {
-        git_buf_free( &repo_path );
+        wxLogTrace( traceGit, "Can't open repo for %s: %s", repo_path.ptr, KIGIT_COMMON::GetLastGitError() );
         return nullptr;
     }
-
-    // Free the git_buf memory
-    git_buf_free( &repo_path );
 
     return repo;
 }
@@ -643,6 +642,7 @@ void PROJECT_TREE_PANE::ReCreateTreePrj()
     {
         git_repository_free( m_TreeProject->GetGitRepo() );
         m_TreeProject->SetGitRepo( nullptr );
+        m_gitIconsInitialized = false;
     }
 
     wxFileName fn = pro_dir;
@@ -733,9 +733,9 @@ void PROJECT_TREE_PANE::ReCreateTreePrj()
 
     CallAfter( [this] ()
     {
-        updateTreeCache();
+        wxLogTrace( traceGit, "PROJECT_TREE_PANE::ReCreateTreePrj: starting timers" );
         m_gitSyncTimer.Start( 100, wxTIMER_ONE_SHOT );
-        m_gitStatusTimer.Start( 150, wxTIMER_ONE_SHOT );
+        m_gitStatusTimer.Start( 500, wxTIMER_ONE_SHOT );
     } );
 }
 
@@ -755,14 +755,15 @@ bool PROJECT_TREE_PANE::hasChangedFiles()
                  | GIT_STATUS_OPT_SORT_CASE_SENSITIVELY;
 
     git_status_list* status_list = nullptr;
-    int              error = git_status_list_new( &status_list, repo, &opts );
 
-    if( error != GIT_OK )
+    if( git_status_list_new( &status_list, repo, &opts ) != GIT_OK )
+    {
+        wxLogError( _( "Failed to get status list: %s" ), KIGIT_COMMON::GetLastGitError() );
         return false;
+    }
 
-    bool has_changed_files = git_status_list_entrycount( status_list ) > 0;
-    git_status_list_free( status_list );
-    return has_changed_files;
+    KIGIT::GitStatusListPtr status_list_ptr( status_list );
+    return ( git_status_list_entrycount( status_list ) > 0 );
 }
 
 
@@ -1315,6 +1316,16 @@ void PROJECT_TREE_PANE::onFileSystemEvent( wxFileSystemWatcherEvent& event )
     if( !m_watcher )
         return;
 
+    // Ignore events that are not file creation, deletion, renaming or modification because
+    // they are not relevant to the project tree.
+    if( !( event.GetChangeType() & ( wxFSW_EVENT_CREATE |
+                                     wxFSW_EVENT_DELETE |
+                                     wxFSW_EVENT_RENAME |
+                                     wxFSW_EVENT_MODIFY ) ) )
+    {
+        return;
+    }
+
     const wxFileName& pathModified = event.GetPath();
     wxString subdir = pathModified.GetPath();
     wxString fn = pathModified.GetFullPath();
@@ -1333,8 +1344,8 @@ void PROJECT_TREE_PANE::onFileSystemEvent( wxFileSystemWatcherEvent& event )
 
     CallAfter( [this] ()
     {
-        updateTreeCache();
-        m_gitStatusTimer.Start( 150, wxTIMER_ONE_SHOT );
+        wxLogTrace( traceGit, wxS( "File system event detected, updating tree cache" ) );
+        m_gitStatusTimer.Start( 1500, wxTIMER_ONE_SHOT );
     } );
 
     wxTreeItemIdValue  cookie;  // dummy variable needed by GetFirstChild()
@@ -1412,6 +1423,9 @@ void PROJECT_TREE_PANE::onFileSystemEvent( wxFileSystemWatcherEvent& event )
         m_isRenaming = false;
     }
         break;
+
+    default:
+        return;
     }
 
     // Sort filenames by alphabetic order
@@ -1619,7 +1633,7 @@ void PROJECT_TREE_PANE::onGitInitializeProject( wxCommandEvent& aEvent )
 
     // Check if the directory is already a git repository
     git_repository* repo = nullptr;
-    int error = git_repository_open(&repo, dir.mb_str());
+    int             error = git_repository_open( &repo, dir.mb_str() );
 
     if( error == 0 )
     {
@@ -1632,6 +1646,7 @@ void PROJECT_TREE_PANE::onGitInitializeProject( wxCommandEvent& aEvent )
         return;
     }
 
+    KIGIT::GitRepositoryPtr repoPtr( repo );
     DIALOG_GIT_REPOSITORY dlg( wxGetTopLevelParent( this ), nullptr );
 
     dlg.SetTitle( _( "Set default remote" ) );
@@ -1640,30 +1655,24 @@ void PROJECT_TREE_PANE::onGitInitializeProject( wxCommandEvent& aEvent )
         return;
 
    // Directory is not a git repository
-    error = git_repository_init( &repo, dir.mb_str(), 0 );
-
-    if( error != 0 )
+    if( git_repository_init( &repo, dir.mb_str(), 0 ) != GIT_OK )
     {
-        git_repository_free( repo );
-
         if( m_gitLastError != git_error_last()->klass )
         {
             m_gitLastError = git_error_last()->klass;
             DisplayErrorMessage( m_parent, _( "Failed to initialize Git project." ),
-                                    git_error_last()->message );
+                                    KIGIT_COMMON::GetLastGitError() );
         }
 
         return;
     }
     else
     {
-        m_TreeProject->SetGitRepo( repo );
+        m_TreeProject->SetGitRepo( repoPtr.release() );
         m_gitLastError = GIT_ERROR_NONE;
     }
 
     //Set up the git remote
-
-    m_TreeProject->GitCommon()->SetConnType( dlg.GetRepoType() );
     m_TreeProject->GitCommon()->SetPassword( dlg.GetPassword() );
     m_TreeProject->GitCommon()->SetUsername( dlg.GetUsername() );
     m_TreeProject->GitCommon()->SetSSHKey( dlg.GetRepoSSHPath() );
@@ -1710,7 +1719,7 @@ void PROJECT_TREE_PANE::onGitInitializeProject( wxCommandEvent& aEvent )
         {
             m_gitLastError = git_error_last()->klass;
             DisplayErrorMessage( m_parent, _( "Failed to set default remote." ),
-                                 git_error_last()->message );
+                                 KIGIT_COMMON::GetLastGitError() );
         }
 
         return;
@@ -1764,6 +1773,8 @@ void PROJECT_TREE_PANE::onGitPullProject( wxCommandEvent& aEvent )
 
         DisplayErrorMessage( m_parent, _( "Failed to pull project" ), errorMessage );
     }
+
+    m_gitStatusTimer.Start( 500, wxTIMER_ONE_SHOT );
 }
 
 
@@ -1786,6 +1797,8 @@ void PROJECT_TREE_PANE::onGitPushProject( wxCommandEvent& aEvent )
 
         DisplayErrorMessage( m_parent, _( "Failed to push project" ), errorMessage );
     }
+
+    m_gitStatusTimer.Start( 500, wxTIMER_ONE_SHOT );
 }
 
 
@@ -1793,30 +1806,30 @@ static int git_create_branch( git_repository* aRepo, wxString& aBranchName )
 {
     git_oid        head_oid;
 
-    if( int error = git_reference_name_to_id( &head_oid, aRepo, "HEAD" ) != 0 )
+    if( int error = git_reference_name_to_id( &head_oid, aRepo, "HEAD" ) != GIT_OK )
     {
-        wxLogError( "Failed to lookup HEAD reference" );
+        wxLogTrace( traceGit, "Failed to lookup HEAD reference: %s", KIGIT_COMMON::GetLastGitError() );
         return error;
     }
 
     // Lookup the current commit object
     git_commit* commit = nullptr;
+
     if( int error = git_commit_lookup( &commit, aRepo, &head_oid ) != GIT_OK )
     {
-        wxLogError( "Failed to lookup commit" );
+        wxLogTrace( traceGit, "Failed to lookup commit: %s", KIGIT_COMMON::GetLastGitError() );
         return error;
     }
 
+    KIGIT::GitCommitPtr commitPtr( commit );
     git_reference* branchRef = nullptr;
 
-    if( git_branch_create( &branchRef, aRepo, aBranchName.mb_str(), commit, 0 ) != 0 )
+    if( int error = git_branch_create( &branchRef, aRepo, aBranchName.mb_str(), commit, 0 ) != GIT_OK )
     {
-        wxLogError( "Failed to create branch" );
-        git_commit_free( commit );
-        return -1;
+        wxLogTrace( traceGit, "Failed to create branch: %s", KIGIT_COMMON::GetLastGitError() );
+        return error;
     }
 
-    git_commit_free( commit );
     git_reference_free( branchRef );
 
     return 0;
@@ -1862,24 +1875,24 @@ void PROJECT_TREE_PANE::onGitSwitchBranch( wxCommandEvent& aEvent )
         git_reference_dwim( &branchRef, repo, branchName.mb_str() ) != GIT_OK )
     {
         wxString errorMessage = wxString::Format( _( "Failed to lookup branch '%s': %s" ),
-                                                  branchName, giterr_last()->message );
+                                                  branchName, KIGIT_COMMON::GetLastGitError() );
         DisplayError( m_parent, errorMessage );
         return;
     }
 
-    const char* branchRefName = git_reference_name( branchRef );
-
-    git_object* branchObj = nullptr;
+    KIGIT::GitReferencePtr branchRefPtr( branchRef );
+    const char*            branchRefName = git_reference_name( branchRef );
+    git_object*            branchObj = nullptr;
 
     if( git_revparse_single( &branchObj, repo, branchName.mb_str() ) != 0 )
     {
         wxString errorMessage =
                 wxString::Format( _( "Failed to find branch head for '%s'" ), branchName );
         DisplayError( m_parent, errorMessage );
-        git_reference_free( branchRef );
         return;
     }
 
+    KIGIT::GitObjectPtr branchObjPtr( branchObj );
 
     // Switch to the branch
     if( git_checkout_tree( repo, branchObj, nullptr ) != 0 )
@@ -1887,8 +1900,6 @@ void PROJECT_TREE_PANE::onGitSwitchBranch( wxCommandEvent& aEvent )
         wxString errorMessage =
                 wxString::Format( _( "Failed to switch to branch '%s'" ), branchName );
         DisplayError( m_parent, errorMessage );
-        git_reference_free( branchRef );
-        git_object_free( branchObj );
         return;
     }
 
@@ -1898,14 +1909,8 @@ void PROJECT_TREE_PANE::onGitSwitchBranch( wxCommandEvent& aEvent )
         wxString errorMessage = wxString::Format(
                 _( "Failed to update HEAD reference for branch '%s'" ), branchName );
         DisplayError( m_parent, errorMessage );
-        git_reference_free( branchRef );
-        git_object_free( branchObj );
         return;
     }
-
-    // Free resources
-    git_reference_free( branchRef );
-    git_object_free( branchObj );
 }
 
 
@@ -1964,13 +1969,18 @@ void PROJECT_TREE_PANE::updateGitStatusIcons()
     std::unique_lock<std::mutex> lock( m_gitStatusMutex, std::try_to_lock );
 
     if( !lock.owns_lock() )
+    {
+        wxLogTrace( traceGit, wxS( "updateGitStatusIcons: Failed to acquire lock for git status icon update" ) );
+        m_gitStatusTimer.Start( 500, wxTIMER_ONE_SHOT );
         return;
+    }
 
     if( ADVANCED_CFG::GetCfg().m_EnableGit == false || !m_TreeProject )
-    return;
+    {
+        wxLogTrace( traceGit, wxS( "updateGitStatusIcons: Git is disabled or tree control is null" ) );
+        return;
+    }
 
-    // Note that this function is called from the idle event, so we need to be careful about
-    // accessing the tree control from a different thread.
     for( auto&[ item, status ] : m_gitStatusIcons )
         m_TreeProject->SetItemState( item, static_cast<int>( status ) );
 
@@ -1980,16 +1990,28 @@ void PROJECT_TREE_PANE::updateGitStatusIcons()
         PROJECT_TREE_ITEM* rootItem = GetItemIdData( kid );
         wxString filename = wxFileNameFromPath( rootItem->GetFileName() );
         m_TreeProject->SetItemText( kid, filename + " [" + m_gitCurrentBranchName + "]" );
+        m_gitIconsInitialized = true;
     }
 }
 
 
 void PROJECT_TREE_PANE::updateTreeCache()
 {
+    wxLogTrace( traceGit, wxS( "updateTreeCache: Updating tree cache" ) );
+
     std::unique_lock<std::mutex> lock( m_gitTreeCacheMutex, std::try_to_lock );
 
-    if( !lock.owns_lock() || !m_TreeProject )
+    if( !lock.owns_lock() )
+    {
+        wxLogTrace( traceGit, wxS( "updateTreeCache: Failed to acquire lock for tree cache update" ) );
         return;
+    }
+
+    if( !m_TreeProject )
+    {
+        wxLogTrace( traceGit, wxS( "updateTreeCache: Tree control is null" ) );
+        return;
+    }
 
     wxTreeItemId kid = m_TreeProject->GetRootItem();
 
@@ -1997,6 +2019,7 @@ void PROJECT_TREE_PANE::updateTreeCache()
         return;
 
     // Collect a map to easily set the state of each item
+    m_gitTreeCache.clear();
     std::stack<wxTreeItemId> items;
     items.push( kid );
 
@@ -2027,6 +2050,7 @@ void PROJECT_TREE_PANE::updateTreeCache()
 
 void PROJECT_TREE_PANE::updateGitStatusIconMap()
 {
+    wxLogTrace( traceGit, wxS( "updateGitStatusIconMap: Updating git status icons" ) );
 #if defined( _WIN32 )
     int refresh = ADVANCED_CFG::GetCfg().m_GitIconRefreshInterval;
 
@@ -2047,13 +2071,22 @@ void PROJECT_TREE_PANE::updateGitStatusIconMap()
     if( ADVANCED_CFG::GetCfg().m_EnableGit == false || !m_TreeProject )
         return;
 
-    std::unique_lock<std::mutex> lock1( m_gitStatusMutex );
-    std::unique_lock<std::mutex> lock2( m_gitTreeCacheMutex );
+    std::unique_lock<std::mutex> lock1( m_gitStatusMutex, std::try_to_lock );
+    std::unique_lock<std::mutex> lock2( m_gitTreeCacheMutex, std::try_to_lock );
+
+    if( !lock1.owns_lock() || !lock2.owns_lock() )
+    {
+        wxLogTrace( traceGit, wxS( "updateGitStatusIconMap: Failed to acquire locks for git status icon update" ) );
+        return;
+    }
 
     git_repository* repo = m_TreeProject->GetGitRepo();
 
     if( !repo )
+    {
+        wxLogTrace( traceGit, wxS( "updateGitStatusIconMap: No git repository found" ) );
         return;
+    }
 
     // Get Current Branch
     PROJECT_TREE_ITEM* rootItem = GetItemIdData( m_TreeProject->GetRootItem() );
@@ -2081,20 +2114,21 @@ void PROJECT_TREE_PANE::updateGitStatusIconMap()
     if( git_repository_index( &index, repo ) != GIT_OK )
     {
         m_gitLastError = giterr_last()->klass;
-        wxLogTrace( traceGit, wxS( "Failed to get git index: %s" ), giterr_last()->message );
+        wxLogTrace( traceGit, wxS( "Failed to get git index: %s" ), KIGIT_COMMON::GetLastGitError() );
         return;
     }
 
-    git_status_list* status_list = nullptr;
+    KIGIT::GitIndexPtr indexPtr( index );
+    git_status_list*   status_list = nullptr;
 
     if( git_status_list_new( &status_list, repo, &status_options ) != GIT_OK )
     {
-        wxLogTrace( traceGit, wxS( "Failed to get git status list: %s" ), giterr_last()->message );
-        git_index_free( index );
+        wxLogTrace( traceGit, wxS( "Failed to get git status list: %s" ), KIGIT_COMMON::GetLastGitError() );
         return;
     }
 
-    auto [ localChanges, remoteChanges ] = m_TreeProject->GitCommon()->GetDifferentFiles();
+    KIGIT::GitStatusListPtr statusListPtr( status_list );
+    auto [localChanges, remoteChanges] = m_TreeProject->GitCommon()->GetDifferentFiles();
 
     size_t count = git_status_list_entrycount( status_list );
     bool   updated = false;
@@ -2159,22 +2193,22 @@ void PROJECT_TREE_PANE::updateGitStatusIconMap()
         else if( localChanges.count( path ) )
         {
             auto [it, inserted] = m_gitStatusIcons.try_emplace( iter->second,
-                                        KIGIT_COMMON::GIT_STATUS::GIT_STATUS_MODIFIED );
+                                        KIGIT_COMMON::GIT_STATUS::GIT_STATUS_AHEAD );
 
-            if( inserted || it->second != KIGIT_COMMON::GIT_STATUS::GIT_STATUS_MODIFIED )
+            if( inserted || it->second != KIGIT_COMMON::GIT_STATUS::GIT_STATUS_AHEAD )
                 updated = true;
 
-            it->second = KIGIT_COMMON::GIT_STATUS::GIT_STATUS_MODIFIED;
+            it->second = KIGIT_COMMON::GIT_STATUS::GIT_STATUS_AHEAD;
         }
         else if( remoteChanges.count( path ) )
         {
             auto [it, inserted] = m_gitStatusIcons.try_emplace( iter->second,
-                                        KIGIT_COMMON::GIT_STATUS::GIT_STATUS_MODIFIED );
+                                        KIGIT_COMMON::GIT_STATUS::GIT_STATUS_BEHIND );
 
-            if( inserted || it->second != KIGIT_COMMON::GIT_STATUS::GIT_STATUS_MODIFIED )
+            if( inserted || it->second != KIGIT_COMMON::GIT_STATUS::GIT_STATUS_BEHIND )
                 updated = true;
 
-            it->second = KIGIT_COMMON::GIT_STATUS::GIT_STATUS_MODIFIED;
+            it->second = KIGIT_COMMON::GIT_STATUS::GIT_STATUS_BEHIND;
         }
         else
         {
@@ -2188,17 +2222,14 @@ void PROJECT_TREE_PANE::updateGitStatusIconMap()
         }
     }
 
-    git_status_list_free( status_list );
-    git_index_free( index );
-
     git_reference* currentBranchReference = nullptr;
     int rc = git_repository_head( &currentBranchReference, repo );
+    KIGIT::GitReferencePtr currentBranchReferencePtr( currentBranchReference );
 
     // Get the current branch name
     if( currentBranchReference )
     {
         m_gitCurrentBranchName = git_reference_shorthand( currentBranchReference );
-        git_reference_free( currentBranchReference );
     }
     else if( rc == GIT_EUNBORNBRANCH )
     {
@@ -2208,13 +2239,13 @@ void PROJECT_TREE_PANE::updateGitStatusIconMap()
     else
     {
         if( giterr_last()->klass != m_gitLastError )
-            wxLogTrace( "git", "Failed to lookup current branch: %s", giterr_last()->message );
+            wxLogTrace( "git", "Failed to lookup current branch: %s", KIGIT_COMMON::GetLastGitError() );
 
         m_gitLastError = giterr_last()->klass;
     }
 
     // If the icons are not changed, queue an event to update in the main thread
-    if( updated )
+    if( updated || !m_gitIconsInitialized )
     {
         CallAfter(
                 [this]()
@@ -2239,6 +2270,7 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
 
     git_config* config = nullptr;
     git_repository_config( &config, repo );
+    KIGIT::GitConfigPtr configPtr( config );
 
     // Read relevant data from the git config
     wxString authorName;
@@ -2248,6 +2280,7 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
     git_config_entry* name_c = nullptr;
     git_config_entry* email_c = nullptr;
     int authorNameError = git_config_get_entry( &name_c, config, "user.name" );
+    KIGIT::GitConfigEntryPtr namePtr( name_c );
 
     if( authorNameError != 0 || name_c == nullptr )
     {
@@ -2256,7 +2289,6 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
     else
     {
         authorName = name_c->value;
-        git_config_entry_free( name_c );
     }
 
     // Read author email
@@ -2269,11 +2301,7 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
     else
     {
         authorEmail = email_c->value;
-        git_config_entry_free( email_c );
     }
-
-    // Free the config object
-    git_config_free( config );
 
     // Collect modified files in the repository
     git_status_options status_options;
@@ -2283,6 +2311,7 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
 
     git_status_list* status_list = nullptr;
     git_status_list_new( &status_list, repo, &status_options );
+    KIGIT::GitStatusListPtr statusListPtr( status_list );
 
     std::map<wxString, int> modifiedFiles;
 
@@ -2363,8 +2392,6 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
         }
     }
 
-    git_status_list_free( status_list );
-
     // Create a commit dialog
     DIALOG_GIT_COMMIT dlg( wxGetTopLevelParent( this ), repo, authorName, authorEmail,
                            modifiedFiles );
@@ -2394,85 +2421,82 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
 
         if( git_repository_index( &index, repo ) != 0 )
         {
-            wxMessageBox( wxString::Format( _( "Failed to get repository index: %s" ),
-                                            giterr_last()->message ) );
+            wxLogTrace( traceGit, wxString::Format( _( "Failed to get repository index: %s" ),
+                                            KIGIT_COMMON::GetLastGitError() ) );
             return;
         }
 
-        for( wxString& file :files )
+        KIGIT::GitIndexPtr indexPtr( index );
+
+        for( wxString& file : files )
         {
             if( git_index_add_bypath( index, file.mb_str() ) != 0 )
             {
                 wxMessageBox( wxString::Format( _( "Failed to add file to index: %s" ),
-                                                giterr_last()->message ) );
-                git_index_free( index );
+                                                KIGIT_COMMON::GetLastGitError() ) );
                 return;
             }
         }
 
         if( git_index_write( index ) != 0 )
         {
-            wxMessageBox( wxString::Format( _( "Failed to write index: %s" ),
-                                            giterr_last()->message ) );
-            git_index_free( index );
+            wxLogTrace( traceGit, wxString::Format( _( "Failed to write index: %s" ),
+                                            KIGIT_COMMON::GetLastGitError() ) );
             return;
         }
 
         if( git_index_write_tree( &tree_id, index ) != 0)
         {
-            wxMessageBox( wxString::Format( _( "Failed to write tree: %s" ),
-                                            giterr_last()->message ) );
-            git_index_free( index );
+            wxLogTrace( traceGit, wxString::Format( _( "Failed to write tree: %s" ),
+                                            KIGIT_COMMON::GetLastGitError() ) );
             return;
         }
-
-        git_index_free( index );
 
         if( git_tree_lookup( &tree, repo, &tree_id ) != 0 )
         {
-            wxMessageBox( wxString::Format( _( "Failed to lookup tree: %s" ),
-                                            giterr_last()->message ) );
+            wxLogTrace( traceGit, wxString::Format( _( "Failed to lookup tree: %s" ),
+                                            KIGIT_COMMON::GetLastGitError() ) );
             return;
         }
 
+        KIGIT::GitTreePtr treePtr( tree );
         git_reference* headRef = nullptr;
 
-        if( 0 == git_repository_head_unborn( repo ) )
+        if( git_repository_head_unborn( repo ) == 0 )
         {
             if( git_repository_head( &headRef, repo ) != 0 )
             {
-                wxMessageBox( wxString::Format( _( "Failed to get HEAD reference: %s" ),
-                                                giterr_last()->message ) );
-                git_index_free( index );
+                wxLogTrace( traceGit, wxString::Format( _( "Failed to get HEAD reference: %s" ),
+                                                KIGIT_COMMON::GetLastGitError() ) );
                 return;
             }
+
+            KIGIT::GitReferencePtr headRefPtr( headRef );
 
             if( git_reference_peel( (git_object**) &parent, headRef, GIT_OBJECT_COMMIT ) != 0 )
             {
-                wxMessageBox( wxString::Format( _( "Failed to get commit: %s" ),
-                                                giterr_last()->message ) );
-                git_reference_free( headRef );
-                git_index_free( index );
+                wxLogTrace( traceGit, wxString::Format( _( "Failed to get commit: %s" ),
+                                                KIGIT_COMMON::GetLastGitError() ) );
                 return;
             }
-
-            git_reference_free( headRef );
         }
 
-        const wxString& commit_msg = dlg.GetCommitMessage();
-        const wxString& author_name = dlg.GetAuthorName();
-        const wxString& author_email = dlg.GetAuthorEmail();
+        KIGIT::GitCommitPtr parentPtr( parent );
+        const wxString&     commit_msg = dlg.GetCommitMessage();
+        const wxString&     author_name = dlg.GetAuthorName();
+        const wxString&     author_email = dlg.GetAuthorEmail();
 
         git_signature* author = nullptr;
 
         if( git_signature_now( &author, author_name.mb_str(), author_email.mb_str() ) != 0 )
         {
-            wxMessageBox( wxString::Format( _( "Failed to create author signature: %s" ),
-                                            giterr_last()->message ) );
+            wxLogTrace( traceGit, wxString::Format( _( "Failed to create author signature: %s" ),
+                                            KIGIT_COMMON::GetLastGitError() ) );
             return;
         }
 
-        git_oid oid;
+        KIGIT::GitSignaturePtr authorPtr( author );
+        git_oid                oid;
 
 #if( LIBGIT2_VER_MAJOR == 1 && LIBGIT2_VER_MINOR == 8                                              \
      && ( LIBGIT2_VER_REVISION < 2 || LIBGIT2_VER_REVISION == 3 ) )
@@ -2504,13 +2528,9 @@ void PROJECT_TREE_PANE::onGitCommit( wxCommandEvent& aEvent )
                            1, parents ) != 0 )
         {
             wxMessageBox( wxString::Format( _( "Failed to create commit: %s" ),
-                                            giterr_last()->message ) );
+                                            KIGIT_COMMON::GetLastGitError() ) );
             return;
         }
-
-        git_signature_free( author );
-        git_commit_free( parent );
-        git_tree_free( tree );
     }
 }
 
@@ -2532,26 +2552,34 @@ bool PROJECT_TREE_PANE::canFileBeAddedToVCS( const wxString& aFile )
         return false;
 
     if( git_repository_index( &index, repo ) != 0 )
+    {
+        wxLogTrace( traceGit, "Failed to get git index: %s", KIGIT_COMMON::GetLastGitError() );
         return false;
+    }
+
+    KIGIT::GitIndexPtr indexPtr( index );
 
     // If we successfully find the file in the index, we may not add it to the VCS
     if( git_index_find( &entry_pos, index, aFile.mb_str() ) == 0 )
     {
-        git_index_free( index );
+        wxLogTrace( traceGit, "File already in index: %s", aFile );
         return false;
     }
 
-    git_index_free( index );
     return true;
 }
 
 
 void PROJECT_TREE_PANE::onGitSyncProject( wxCommandEvent& aEvent )
 {
+    wxLogTrace( traceGit, "Syncing project" );
     git_repository* repo = m_TreeProject->GetGitRepo();
 
     if( !repo )
+    {
+        wxLogTrace( traceGit, "sync: No git repository found" );
         return;
+    }
 
     GIT_SYNC_HANDLER handler( repo );
     handler.PerformSync();
@@ -2567,6 +2595,8 @@ void PROJECT_TREE_PANE::onGitFetch( wxCommandEvent& aEvent )
 
     GIT_PULL_HANDLER handler( gitCommon );
     handler.PerformFetch();
+
+    m_gitStatusTimer.Start( 500, wxTIMER_ONE_SHOT );
 }
 
 
@@ -2614,6 +2644,7 @@ void PROJECT_TREE_PANE::onRunSelectedJobsFile(wxCommandEvent& event)
 
 void PROJECT_TREE_PANE::onGitSyncTimer( wxTimerEvent& aEvent )
 {
+    wxLogTrace( traceGit, "onGitSyncTimer" );
     if( ADVANCED_CFG::GetCfg().m_EnableGit == false || !m_TreeProject )
         return;
 
@@ -2624,7 +2655,10 @@ void PROJECT_TREE_PANE::onGitSyncTimer( wxTimerEvent& aEvent )
         KIGIT_COMMON* gitCommon = m_TreeProject->GitCommon();
 
         if( !gitCommon )
+        {
+            wxLogTrace( traceGit, "onGitSyncTimer: No git repository found" );
             return;
+        }
 
         GIT_PULL_HANDLER handler( gitCommon );
         handler.PerformFetch();
@@ -2632,6 +2666,7 @@ void PROJECT_TREE_PANE::onGitSyncTimer( wxTimerEvent& aEvent )
 
     if( ADVANCED_CFG::GetCfg().m_GitProjectStatusRefreshInterval > 0 )
     {
+        wxLogTrace( traceGit, "onGitSyncTimer: Starting git status timer" );
         m_gitSyncTimer.Start( ADVANCED_CFG::GetCfg().m_GitProjectStatusRefreshInterval,
                               wxTIMER_ONE_SHOT );
     }
@@ -2639,9 +2674,11 @@ void PROJECT_TREE_PANE::onGitSyncTimer( wxTimerEvent& aEvent )
 
 void PROJECT_TREE_PANE::onGitStatusTimer( wxTimerEvent& aEvent )
 {
+    wxLogTrace( traceGit, "onGitStatusTimer" );
     if( ADVANCED_CFG::GetCfg().m_EnableGit == false || !m_TreeProject )
         return;
 
+    updateTreeCache();
     thread_pool& tp = GetKiCadThreadPool();
 
     tp.push_task( [this]()

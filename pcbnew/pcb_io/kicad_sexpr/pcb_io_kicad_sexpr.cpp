@@ -1201,14 +1201,14 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
         m_out->Print( ")" );
     }
 
-    if( const COMPONENT_CLASS* compClass = aFootprint->GetComponentClass() )
+    if( const COMPONENT_CLASS* compClass = aFootprint->GetStaticComponentClass() )
     {
         if( !compClass->IsEmpty() )
         {
             m_out->Print( "(component_classes" );
 
             for( const COMPONENT_CLASS* constituent : compClass->GetConstituentClasses() )
-                m_out->Print( "(class %s)", m_out->Quotew( constituent->GetFullName() ).c_str() );
+                m_out->Print( "(class %s)", m_out->Quotew( constituent->GetName() ).c_str() );
 
             m_out->Print( ")" );
         }
@@ -2129,9 +2129,9 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TABLE* aTable ) const
 
     m_out->Print( "(border" );
     KICAD_FORMAT::FormatBool( m_out, "external", aTable->StrokeExternal() );
-    KICAD_FORMAT::FormatBool( m_out, "header", aTable->StrokeHeader() );
+    KICAD_FORMAT::FormatBool( m_out, "header", aTable->StrokeHeaderSeparator() );
 
-    if( aTable->StrokeExternal() || aTable->StrokeHeader() )
+    if( aTable->StrokeExternal() || aTable->StrokeHeaderSeparator() )
         aTable->GetBorderStroke().Format( m_out, pcbIUScale );
 
     m_out->Print( ")" );                // Close `border` token.

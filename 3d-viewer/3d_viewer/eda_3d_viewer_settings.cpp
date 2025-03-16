@@ -19,6 +19,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <fmt/format.h>
 #include <3d_enums.h>
 #include <common_ogl/ogl_attr_list.h>
 #include <settings/parameters.h>
@@ -353,6 +354,13 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
                                             &m_Render.show_eco1, true ) );
     m_params.emplace_back( new PARAM<bool>( "render.show_eco2",
                                             &m_Render.show_eco2, true ) );
+
+    for( int layer = 0; layer < 45; ++layer )
+    {
+        m_params.emplace_back( new PARAM<bool>( fmt::format( "render.show_user{}", layer + 1 ),
+                                                &m_Render.show_user[layer], false ) );
+    }
+
     m_params.emplace_back( new PARAM<bool>( "render.show_footprints_insert",
                                             &m_Render.show_footprints_insert, true ) );
     m_params.emplace_back( new PARAM<bool>( "render.show_footprints_normal",
@@ -393,6 +401,8 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
                                             &m_Render.differentiate_plated_copper, false ) );
     m_params.emplace_back( new PARAM<bool>( "render.use_board_editor_copper_colors",
                                             &m_Render.use_board_editor_copper_colors, false ) );
+    m_params.emplace_back( new PARAM<bool>( "render.preview_show_board_body",
+                                            &m_Render.preview_show_board_body, true ) );
     m_params.emplace_back( new PARAM<bool>( "camera.animation_enabled",
                                             &m_Camera.animation_enabled, true ) );
     m_params.emplace_back( new PARAM<int>( "camera.moving_speed_multiplier",

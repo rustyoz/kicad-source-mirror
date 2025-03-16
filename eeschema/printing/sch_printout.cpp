@@ -20,7 +20,7 @@
 
 #include "sch_printout.h"
 #include <tool/tool_manager.h>
-#include <tools/ee_selection_tool.h>
+#include <tools/sch_selection_tool.h>
 #include <sch_edit_frame.h>
 #include <math/vector2wx.h>
 #include <pgm_base.h>
@@ -98,6 +98,7 @@ bool SCH_PRINTOUT::OnPrintPage( int page )
     // Ensure the displayed page number is updated:
     KIGFX::SCH_VIEW* sch_view = m_parent->GetCanvas()->GetView();
     sch_view->GetDrawingSheet()->SetPageNumber( TO_UTF8( screen->GetPageNumber() ) );
+    sch_view->GetDrawingSheet()->SetIsFirstPage( screen->GetVirtualPageNumber() == 1 );
 
     // Print page using the current wxPrinterDC
     PrintPage( screen, GetDC(), true );
@@ -108,6 +109,7 @@ bool SCH_PRINTOUT::OnPrintPage( int page )
     m_parent->SetSheetNumberAndCount();
     screen = m_parent->GetCurrentSheet().LastScreen();
     sch_view->GetDrawingSheet()->SetPageNumber( TO_UTF8( screen->GetPageNumber() ) );
+    sch_view->GetDrawingSheet()->SetIsFirstPage( screen->GetVirtualPageNumber() == 1 );
 
     return true;
 }
@@ -137,10 +139,10 @@ bool SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen, wxDC* aDC, bool aForPrinting 
 
     painter->SetSchematic( &m_parent->Schematic() );
 
-    SETTINGS_MANAGER&  mgr   = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg   = m_parent->eeconfig();
-    COLOR_SETTINGS*    theme = mgr.GetColorSettings( cfg->m_Printing.color_theme );
-    EE_SELECTION_TOOL* selTool = m_parent->GetToolManager()->GetTool<EE_SELECTION_TOOL>();
+        SETTINGS_MANAGER&   mgr   = Pgm().GetSettingsManager();
+        EESCHEMA_SETTINGS*  cfg   = m_parent->eeconfig();
+        COLOR_SETTINGS*     theme = mgr.GetColorSettings( cfg->m_Printing.color_theme );
+        SCH_SELECTION_TOOL* selTool = m_parent->GetToolManager()->GetTool<SCH_SELECTION_TOOL>();
 
     // Target paper size
     wxRect pageSizePix;

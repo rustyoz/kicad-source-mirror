@@ -1599,7 +1599,7 @@ int EDIT_TOOL::ModifyLines( const TOOL_EVENT& aEvent )
 
     commit.Push( pairwise_line_routine->GetCommitDescription() );
 
-    if( const std::optional<wxString> msg = pairwise_line_routine->GetStatusMessage() )
+    if( const std::optional<wxString> msg = pairwise_line_routine->GetStatusMessage( segmentCount ) )
         frame()->ShowInfoBarMsg( *msg );
 
     return 0;
@@ -1943,6 +1943,12 @@ int EDIT_TOOL::Properties( const TOOL_EVENT& aEvent )
         }
     }
 
+    if( m_dragging )
+    {
+        m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
+
     return 0;
 }
 
@@ -2053,6 +2059,9 @@ int EDIT_TOOL::Rotate( const TOOL_EVENT& aEvent )
 
                 board_item->Rotate( refPt, rotateAngle );
                 board_item->Normalize();
+
+                if( board_item->Type() == PCB_FOOTPRINT_T )
+                    static_cast<FOOTPRINT*>( board_item )->InvalidateComponentClassCache();
             }
         }
 
@@ -2065,7 +2074,10 @@ int EDIT_TOOL::Rotate( const TOOL_EVENT& aEvent )
         m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
         if( m_dragging )
+        {
             m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+            m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+        }
     }
 
     // Restore the old reference so any mouse dragging that occurs doesn't make the selection jump
@@ -2229,7 +2241,10 @@ int EDIT_TOOL::Mirror( const TOOL_EVENT& aEvent )
     m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
     if( m_dragging )
+    {
         m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
 
     return 0;
 }
@@ -2304,7 +2319,10 @@ int EDIT_TOOL::JustifyText( const TOOL_EVENT& aEvent )
     m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
     if( m_dragging )
+    {
         m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
 
     return 0;
 }
@@ -2374,6 +2392,9 @@ int EDIT_TOOL::Flip( const TOOL_EVENT& aEvent )
 
         boardItem->Flip( refPt, flipDirection );
         boardItem->Normalize();
+
+        if( boardItem->Type() == PCB_FOOTPRINT_T )
+            static_cast<FOOTPRINT*>( boardItem )->InvalidateComponentClassCache();
     }
 
     if( !localCommit.Empty() )
@@ -2385,7 +2406,10 @@ int EDIT_TOOL::Flip( const TOOL_EVENT& aEvent )
     m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
     if( m_dragging )
+    {
         m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
 
     // Restore the old reference so any mouse dragging that occurs doesn't make the selection jump
     // to this now invalid reference
@@ -2810,7 +2834,10 @@ int EDIT_TOOL::MoveExact( const TOOL_EVENT& aEvent )
         m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
         if( m_dragging )
+        {
             m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+            m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+        }
     }
 
     return 0;

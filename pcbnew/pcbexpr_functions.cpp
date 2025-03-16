@@ -28,6 +28,7 @@
 #include <wx/log.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <component_classes/component_class.h>
 #include <drc/drc_rtree.h>
 #include <drc/drc_engine.h>
 #include <lset.h>
@@ -1263,7 +1264,12 @@ static void hasComponentClassFunc( LIBEVAL::CONTEXT* aCtx, void* self )
     result->SetDeferredEval(
             [item, arg]() -> double
             {
-                FOOTPRINT* footprint = dynamic_cast<FOOTPRINT*>( item );
+                FOOTPRINT* footprint = nullptr;
+
+                if( item->Type() == PCB_FOOTPRINT_T )
+                    footprint = static_cast<FOOTPRINT*>( item );
+                else
+                    footprint = item->GetParentFootprint();
 
                 if( !footprint )
                     return 0.0;

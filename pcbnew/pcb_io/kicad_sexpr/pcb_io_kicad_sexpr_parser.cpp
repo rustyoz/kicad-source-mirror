@@ -3763,7 +3763,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseTextBoxContent( PCB_TEXTBOX* aTextBox )
             break;
 
         case T_knockout:
-            if( PCB_TABLECELL* cell = dynamic_cast<PCB_TABLECELL*>( aTextBox ) )
+            if( [[maybe_unused]] PCB_TABLECELL* cell = dynamic_cast<PCB_TABLECELL*>( aTextBox ) )
             {
                 Expecting( "locked, start, pts, angle, width, margins, layer, effects, span, "
                            "render_cache, uuid or tstamp" );
@@ -3932,7 +3932,7 @@ PCB_TABLE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TABLE( BOARD_ITEM* aParent )
                     break;
 
                 case T_header:
-                    table->SetStrokeHeader( parseBool() );
+                    table->SetStrokeHeaderSeparator( parseBool() );
                     NeedRIGHT();
                     break;
 
@@ -4507,7 +4507,8 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
 
     if( m_board )
     {
-        footprint->SetComponentClass( m_board->GetComponentClassManager().GetNoneComponentClass() );
+        footprint->SetStaticComponentClass(
+                m_board->GetComponentClassManager().GetNoneComponentClass() );
     }
 
     token = NextTok();

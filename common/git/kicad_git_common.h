@@ -27,15 +27,17 @@
 #include <git/kicad_git_errors.h>
 
 #include <git2.h>
+#include <mutex>
 #include <set>
 
 #include <wx/string.h>
 
-class KIGIT_COMMON : public KIGIT_ERRORS
+class KIGIT_COMMON
 {
 
 public:
     KIGIT_COMMON( git_repository* aRepo );
+    KIGIT_COMMON( const KIGIT_COMMON& aOther );
     ~KIGIT_COMMON();
 
     git_repository* GetRepo() const;
@@ -48,8 +50,6 @@ public:
     wxString GetCurrentBranchName() const;
 
     std::vector<wxString> GetBranchNames() const;
-
-    virtual void UpdateProgress( int aCurrent, int aTotal, const wxString& aMessage ) {};
 
     /**
      * Return a vector of project files in the repository.  Sorted by the depth of
@@ -90,18 +90,11 @@ public:
 
     wxString GetUsername() const { return m_username; }
     wxString GetPassword() const { return m_password; }
-    GIT_CONN_TYPE GetConnType() const { return m_connType; }
+    GIT_CONN_TYPE GetConnType() const;
 
     void SetUsername( const wxString& aUsername ) { m_username = aUsername; }
     void SetPassword( const wxString& aPassword ) { m_password = aPassword; }
     void SetSSHKey( const wxString& aSSHKey );
-
-    void SetConnType( GIT_CONN_TYPE aConnType ) { m_connType = aConnType; }
-    void SetConnType( unsigned aConnType )
-    {
-        if( aConnType < static_cast<unsigned>( GIT_CONN_TYPE::GIT_CONN_LAST ) )
-            m_connType = static_cast<GIT_CONN_TYPE>( aConnType );
-    }
 
     // Holds a temporary variable that can be used by the authentication callback
     // to remember which types of authentication have been tested so that we
@@ -131,6 +124,22 @@ public:
         return m_publicKeys[m_nextPublicKey++];
     }
 
+    int HandleSSHKeyAuthentication( git_cred** aOut, const wxString& aUsername );
+
+    int HandlePlaintextAuthentication( git_cred** aOut, const wxString& aUsername );
+
+    int HandleSSHAgentAuthentication( git_cred** aOut, const wxString& aUsername );
+
+    static wxString GetLastGitError()
+    {
+        const git_error* error = git_error_last();
+
+        if( error == nullptr )
+            return wxString( "No error" );
+
+        return wxString( error->message );
+    }
+
 protected:
     git_repository* m_repo;
 
@@ -142,6 +151,13 @@ protected:
 
     unsigned m_testedTypes;
 
+    std::mutex m_gitActionMutex;
+
+    // Make git handlers friends so they can access the mutex
+    friend class GIT_PUSH_HANDLER;
+    friend class GIT_PULL_HANDLER;
+    friend class GIT_CLONE_HANDLER;
+
 private:
     void updatePublicKeys();
     void updateConnectionType();
@@ -149,10 +165,12 @@ private:
     std::vector<wxString> m_publicKeys;
     int m_nextPublicKey;
 
+    // Create a dummy flag to tell if we have tested ssh agent credentials separately
+    // from the ssh key credentials
+    static const unsigned KIGIT_CREDENTIAL_SSH_AGENT = 1 << sizeof( m_testedTypes - 1 );
 };
 
-
-extern "C" int progress_cb( const char* str, int len, void* data );
+extern "C" int  progress_cb( const char* str, int len, void* data );
 extern "C" void clone_progress_cb( const char* str, size_t len, size_t total, void* data );
 extern "C" int transfer_progress_cb( const git_transfer_progress* aStats, void* aPayload );
 extern "C" int update_cb( const char* aRefname, const git_oid* aFirst, const git_oid* aSecond,
