@@ -24,61 +24,167 @@
 #ifndef CHEM_SCHEMATIC_H
 #define CHEM_SCHEMATIC_H
 
-#include <base_struct.h>
-#include <eda_item.h>
-#include <tool/tool_event.h>
-#include <tool/tool_interactive.h>
+#include <vector>
+#include <wx/string.h>
+#include <wx/filename.h>
 
-class CHEM_EDIT_FRAME;
+// Forward declarations
+class CHEM_SYMBOL;
+class CHEM_CONNECTION;
+class CHEM_LABEL;
 
 /**
- * Class representing a chemical process flow diagram
+ * Enum for chemical schematic layers
  */
-class CHEM_SCHEMATIC : public EDA_ITEM
+enum CHEM_LAYER_ID
+{
+    CHEM_LAYER_BACKGROUND,
+    CHEM_LAYER_GRID,
+    CHEM_LAYER_CONNECTIONS,
+    CHEM_LAYER_SYMBOLS,
+    CHEM_LAYER_LABELS,
+    CHEM_LAYER_SELECTION,
+    CHEM_LAYER_ID_COUNT
+};
+
+/**
+ * Class to store display options for the chemical schematic
+ */
+class CHEM_DISPLAY_OPTIONS
 {
 public:
-    CHEM_SCHEMATIC( CHEM_EDIT_FRAME* aFrame );
-    virtual ~CHEM_SCHEMATIC();
+    bool m_showGrid;
+    bool m_showLabels;
+    bool m_showConnections;
+    bool m_showSymbols;
+    
+    CHEM_DISPLAY_OPTIONS() :
+        m_showGrid( true ),
+        m_showLabels( true ),
+        m_showConnections( true ),
+        m_showSymbols( true )
+    {
+    }
+};
 
-    virtual EDA_ITEM* Clone() const override { return new CHEM_SCHEMATIC( *this ); }
-
-    CHEM_EDIT_FRAME* GetFrame() const { return m_frame; }
-
+/**
+ * Class to represent a chemical process flow diagram
+ */
+class CHEM_SCHEMATIC
+{
+public:
     /**
-     * Save the chemical process flow diagram to a file
+     * Constructor
      */
-    bool SaveFile( const wxString& aFileName );
-
-    /**
-     * Load a chemical process flow diagram from a file
-     */
-    bool LoadFile( const wxString& aFileName );
+    CHEM_SCHEMATIC();
     
     /**
-     * Clear the current chemical process flow diagram
+     * Destructor
+     */
+    ~CHEM_SCHEMATIC();
+    
+    /**
+     * Clear the schematic
      */
     void Clear();
-
-    /**
-     * Add a component to the chemical process flow diagram
-     */
-    void AddItem( EDA_ITEM* aItem );
-
-    /**
-     * Remove a component from the chemical process flow diagram
-     */
-    void RemoveItem( EDA_ITEM* aItem );
     
     /**
-     * Notify the view system of any changes
+     * Add a symbol to the schematic
+     * @param aSymbol - The symbol to add
      */
-    void UpdateView();
-
+    void AddSymbol( CHEM_SYMBOL* aSymbol );
+    
+    /**
+     * Remove a symbol from the schematic
+     * @param aSymbol - The symbol to remove
+     */
+    void RemoveSymbol( CHEM_SYMBOL* aSymbol );
+    
+    /**
+     * Get all symbols in the schematic
+     * @return Vector of symbols
+     */
+    const std::vector<CHEM_SYMBOL*>& GetSymbols() const;
+    
+    /**
+     * Add a connection to the schematic
+     * @param aConnection - The connection to add
+     */
+    void AddConnection( CHEM_CONNECTION* aConnection );
+    
+    /**
+     * Remove a connection from the schematic
+     * @param aConnection - The connection to remove
+     */
+    void RemoveConnection( CHEM_CONNECTION* aConnection );
+    
+    /**
+     * Get all connections in the schematic
+     * @return Vector of connections
+     */
+    const std::vector<CHEM_CONNECTION*>& GetConnections() const;
+    
+    /**
+     * Add a label to the schematic
+     * @param aLabel - The label to add
+     */
+    void AddLabel( CHEM_LABEL* aLabel );
+    
+    /**
+     * Remove a label from the schematic
+     * @param aLabel - The label to remove
+     */
+    void RemoveLabel( CHEM_LABEL* aLabel );
+    
+    /**
+     * Get all labels in the schematic
+     * @return Vector of labels
+     */
+    const std::vector<CHEM_LABEL*>& GetLabels() const;
+    
+    /**
+     * Set the schematic filename
+     * @param aFilename - The filename
+     */
+    void SetFilename( const wxFileName& aFilename );
+    
+    /**
+     * Get the schematic filename
+     * @return The filename
+     */
+    const wxFileName& GetFilename() const;
+    
+    /**
+     * Set the schematic title
+     * @param aTitle - The title
+     */
+    void SetTitle( const wxString& aTitle );
+    
+    /**
+     * Get the schematic title
+     * @return The title
+     */
+    const wxString& GetTitle() const;
+    
+    /**
+     * Set whether the schematic has been modified
+     * @param aModified - True if modified, false otherwise
+     */
+    void SetModified( bool aModified );
+    
+    /**
+     * Check if the schematic has been modified
+     * @return True if modified, false otherwise
+     */
+    bool IsModified() const;
+    
 private:
-    CHEM_SCHEMATIC( const CHEM_SCHEMATIC& other );
-
-    CHEM_EDIT_FRAME* m_frame;
-    std::vector<EDA_ITEM*> m_items;
+    std::vector<CHEM_SYMBOL*> m_symbols;
+    std::vector<CHEM_CONNECTION*> m_connections;
+    std::vector<CHEM_LABEL*> m_labels;
+    wxFileName m_filename;
+    wxString m_title;
+    bool m_modified;
 };
 
 #endif // CHEM_SCHEMATIC_H 

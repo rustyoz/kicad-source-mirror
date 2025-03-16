@@ -24,53 +24,107 @@
 #include <kiface_base.h>
 #include <kiway.h>
 #include <pgm_base.h>
-#include <settings/settings_manager.h>
-#include <wildcards_and_files_ext.h>
+#include <wx/app.h>
+#include <wx/event.h>
+#include <wx/log.h>
+#include <wx/config.h>
+#include <wx/window.h>
+#include <wx/cmdline.h>
+#include <wx/filename.h>
 
-#include "chem_edit_frame.h"
-#include "chemschema_settings.h"
+#include "chem_frame.h"
 
+/**
+ * Main application class for the Chemical Process Flow Diagram editor
+ */
+class CHEM_SCHEMA_APP : public wxApp
+{
+public:
+    CHEM_SCHEMA_APP() {}
+
+    /**
+     * Called when the application starts
+     */
+    bool OnInit() override
+    {
+        CHEM_FRAME* frame = new CHEM_FRAME( nullptr, nullptr );
+        SetTopWindow( frame );
+        frame->Show( true );
+        
+        return true;
+    }
+};
+
+wxIMPLEMENT_APP( CHEM_SCHEMA_APP );
+
+/**
+ * KIFACE_I implementation for the Chemical Process Flow Diagram editor
+ */
 namespace CHEMSCHEMA {
 
-static struct IFACE : public KIFACE_BASE
+static struct IFACE : public KIFACE_I
 {
-    // Of course all are virtual override.
-    bool OnKifaceStart( PGM_BASE* aProgram, int aCtlBits ) override;
+    // Of course all are overloads, implementations of virtual functions in KIFACE_I
 
-    void OnKifaceEnd() override;
-
+    bool OnKifaceStart( PGM_BASE* aProgram, int aCtlBits ) override
+    {
+        return start_common( aProgram );
+    }
+    
+    void OnKifaceEnd() override
+    {
+        end_common();
+    }
+    
     wxWindow* CreateWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway,
-                            int aCtlBits = 0 ) override;
-
+                            int aCtlBits = 0 ) override
+    {
+        switch( aClassId )
+        {
+        case FRAME_CHEM_SCHEMA:
+            {
+                CHEM_FRAME* frame = new CHEM_FRAME( aKiway, aParent );
+                return frame;
+            }
+            break;
+            
+        default:
+            return nullptr;
+        }
+    }
+    
     /**
-     * Return a pointer to the requested object.
+     * Function IfaceOrAddress
+     * returns a pointer to the requested object.
      *
-     * The safest way to use this is to retrieve a pointer to a static instance of an
-     * interface, similar to how the KIFACE interface is exported.  But if you know what
-     * you are doing use it to retrieve anything you want.
+     * @param aDataId identifies which object you want the address of.
+     *
+     * @return void* - and must be cast into the know type.
      */
-    void* IfaceOrAddress( int aDataId ) override;
-
+    void* IfaceOrAddress( int aDataId ) override
+    {
+        return NULL;
+    }
+    
     /**
-     * Return the initialized or created settings manager reference.
+     * Function ReturnSingle
+     * is a simplified version of CreateWindow() for use when there can be only one
+     * main window of aClassId open at a time.
      */
-    SETTINGS_MANAGER& GetSettingsManager() override;
+    wxWindow* ReturnSingle( wxWindow* aParent, int aClassId, KIWAY* aKiway,
+                            int aCtlBits, wxString* aWindowTitle = nullptr ) override
+    {
+        return CreateWindow( aParent, aClassId, aKiway, aCtlBits );
+    }
 
-private:
-    SETTINGS_MANAGER* m_settings_manager;
+} kiface;
 
-} kiface( "chemschema", KIWAY::FACE_CHEM_SCHEMA );
+} // namespace
 
-} // namespace CHEMSCHEMA
+static KIFACE_I& Kiface() { return CHEMSCHEMA::kiface; }
 
-using namespace CHEMSCHEMA;
-
-static int kiChemschemaSingletonCount = 0;
-
-// KIFACE_GETTER's job is to create the KIFACE side of this binary's
-// KIFACE, which is typically only a C++ singleton class, along with
-// its few global variables like the single KIWAY.
-KIFACE_GETTER( &kiface )
+// KIFACE_GETTER's job is to create KIFACE on demand and return it.
+KIFACE_GETTER( &Kiface )
 
 // KIFACE_GETTER_EXTRA is macro debris left from a previous API, not used in C++ context.
 KIFACE_GETTER_EXTRA( "This is the Chemical Process Flow Diagram editor." )
@@ -111,7 +165,7 @@ wxWindow* IFACE::CreateWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway, i
     {
     case FRAME_CHEM_SCHEMA:
     {
-        CHEM_EDIT_FRAME* frame = new CHEM_EDIT_FRAME( aKiway, aParent );
+        CHEM_FRAME* frame = new CHEM_FRAME( aKiway, aParent );
 
         if( frame )
         {

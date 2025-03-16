@@ -297,6 +297,8 @@ public:
         FACE_PCB_CALCULATOR,
         FACE_BMP2CMP,
         FACE_PYTHON,
+        FACE_CHEM_SCHEMA,       ///< chemschema DSO
+        FACE_CHEM_LAYOUT,       ///< chemlayout DSO
 
         KIWAY_FACE_COUNT
     };

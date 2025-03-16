@@ -21,21 +21,21 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef CHEM_EDIT_FRAME_H
-#define CHEM_EDIT_FRAME_H
+#ifndef LAYOUT_EDIT_FRAME_H
+#define LAYOUT_EDIT_FRAME_H
 
 #include <kiway_player.h>
 #include <wx/filename.h>
 
-class CHEM_SCHEMATIC;
-class CHEM_VIEW;
+class CHEM_LAYOUT;
+class LAYOUT_VIEW;
 class TOOL_MANAGER;
-class CHEM_DISPLAY_OPTIONS;
+class LAYOUT_DISPLAY_OPTIONS;
 
 /**
- * Main frame for the chemical process flow diagram editor
+ * Main frame for the chemical reactor layout editor
  */
-class CHEM_EDIT_FRAME : public KIWAY_PLAYER
+class LAYOUT_EDIT_FRAME : public KIWAY_PLAYER
 {
 public:
     /**
@@ -49,28 +49,28 @@ public:
      * @param aStyle - Window style
      * @param aFrameName - Frame name
      */
-    CHEM_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
-                    const wxString& aTitle, const wxPoint& aPos = wxDefaultPosition,
-                    const wxSize& aSize = wxDefaultSize,
-                    long aStyle = KICAD_DEFAULT_DRAWFRAME_STYLE,
-                    const wxString& aFrameName = wxT( "ChemSchemaFrame" ) );
+    LAYOUT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
+                      const wxString& aTitle, const wxPoint& aPos = wxDefaultPosition,
+                      const wxSize& aSize = wxDefaultSize,
+                      long aStyle = KICAD_DEFAULT_DRAWFRAME_STYLE,
+                      const wxString& aFrameName = wxT( "ChemLayoutFrame" ) );
     
     /**
      * Destructor
      */
-    ~CHEM_EDIT_FRAME();
+    ~LAYOUT_EDIT_FRAME();
     
     /**
-     * Get the chemical schematic
-     * @return Pointer to the chemical schematic
+     * Get the chemical layout
+     * @return Pointer to the chemical layout
      */
-    CHEM_SCHEMATIC* GetChemSchematic() const;
+    CHEM_LAYOUT* GetChemLayout() const;
     
     /**
-     * Get the chemical view
-     * @return Pointer to the chemical view
+     * Get the layout view
+     * @return Pointer to the layout view
      */
-    CHEM_VIEW* GetChemView() const;
+    LAYOUT_VIEW* GetLayoutView() const;
     
     /**
      * Get the tool manager
@@ -82,26 +82,26 @@ public:
      * Get the display options
      * @return Pointer to the display options
      */
-    CHEM_DISPLAY_OPTIONS* GetDisplayOptions() const;
+    LAYOUT_DISPLAY_OPTIONS* GetDisplayOptions() const;
     
     /**
-     * Create a new chemical schematic
+     * Create a new chemical layout
      */
-    void NewSchematic();
+    void NewLayout();
     
     /**
-     * Open a chemical schematic from a file
+     * Open a chemical layout from a file
      * @param aFileName - The file to open
      * @return True if successful, false otherwise
      */
-    bool OpenSchematic( const wxString& aFileName );
+    bool OpenLayout( const wxString& aFileName );
     
     /**
-     * Save the current chemical schematic to a file
+     * Save the current chemical layout to a file
      * @param aFileName - The file to save to
      * @return True if successful, false otherwise
      */
-    bool SaveSchematic( const wxString& aFileName );
+    bool SaveLayout( const wxString& aFileName );
     
     /**
      * Update the view
@@ -141,11 +141,11 @@ public:
     const wxFileName& GetCurrentFile() const;
     
 private:
-    CHEM_SCHEMATIC* m_chemSchematic;
-    CHEM_VIEW* m_chemView;
+    CHEM_LAYOUT* m_chemLayout;
+    LAYOUT_VIEW* m_layoutView;
     TOOL_MANAGER* m_toolManager;
-    CHEM_DISPLAY_OPTIONS* m_displayOptions;
+    LAYOUT_DISPLAY_OPTIONS* m_displayOptions;
     wxFileName m_currentFile;
 };
 
-#endif // CHEM_EDIT_FRAME_H 
+#endif // LAYOUT_EDIT_FRAME_H 

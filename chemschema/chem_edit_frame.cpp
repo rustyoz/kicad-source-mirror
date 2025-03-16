@@ -29,6 +29,10 @@
 
 #include "chem_edit_frame.h"
 #include "chem_schematic.h"
+#include "chem_view.h"
+#include <wx/filedlg.h>
+#include <wx/msgdlg.h>
+#include <wx/statusbr.h>
 
 // For information, the main classes hierarchy for chemschema is:
 //
@@ -36,21 +40,31 @@
 // CHEM_EDIT_FRAME has a TOOL_MANAGER
 // CHEM_EDIT_FRAME has a CHEM_SCHEMATIC
 
-CHEM_EDIT_FRAME::CHEM_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
-        KIWAY_PLAYER( aKiway, aParent, CHEMSCHEMA::FRAME_CHEM_SCHEMA, wxT( "ChemSchema" ),
-                     wxDefaultPosition, wxDefaultSize, 
-                     wxDEFAULT_FRAME_STYLE | wxWANTS_CHARS, GetCanvasType() )
+CHEM_EDIT_FRAME::CHEM_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
+                                 const wxString& aTitle, const wxPoint& aPos,
+                                 const wxSize& aSize, long aStyle,
+                                 const wxString& aFrameName ) :
+    KIWAY_PLAYER( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName )
 {
-    m_schematic = nullptr;
+    m_chemSchematic = nullptr;
+    m_chemView = nullptr;
+    m_displayOptions = nullptr;
     m_toolManager = nullptr;
     m_actions = nullptr;
 
-    // Create the schematic view
-    m_schematic = new CHEM_SCHEMATIC( this );
+    // Create the schematic
+    m_chemSchematic = new CHEM_SCHEMATIC();
+    
+    // Create the view
+    m_chemView = new CHEM_VIEW( false );
+    m_chemView->SetChemSchematic( m_chemSchematic );
+    
+    // Create the display options
+    m_displayOptions = new CHEM_DISPLAY_OPTIONS();
 
     // Create and initialize the tool manager
     m_toolManager = new TOOL_MANAGER;
-    m_toolManager->SetEnvironment( m_schematic, nullptr, nullptr, this );
+    m_toolManager->SetEnvironment( this, nullptr, nullptr, nullptr );
 
     // Register common tools
     m_actions = new ACTIONS();
@@ -84,7 +98,33 @@ CHEM_EDIT_FRAME::~CHEM_EDIT_FRAME()
     
     delete m_actions;
     delete m_toolManager;
-    delete m_schematic;
+    delete m_chemSchematic;
+    delete m_chemView;
+    delete m_displayOptions;
+}
+
+
+CHEM_SCHEMATIC* CHEM_EDIT_FRAME::GetChemSchematic() const
+{
+    return m_chemSchematic;
+}
+
+
+CHEM_VIEW* CHEM_EDIT_FRAME::GetChemView() const
+{
+    return m_chemView;
+}
+
+
+TOOL_MANAGER* CHEM_EDIT_FRAME::GetToolManager() const
+{
+    return m_toolManager;
+}
+
+
+CHEM_DISPLAY_OPTIONS* CHEM_EDIT_FRAME::GetDisplayOptions() const
+{
+    return m_displayOptions;
 }
 
 
@@ -198,4 +238,182 @@ void CHEM_EDIT_FRAME::setupTools()
 void CHEM_EDIT_FRAME::createCanvas()
 {
     // To be implemented with canvas creation logic
+}
+
+
+void CHEM_EDIT_FRAME::NewSchematic()
+{
+    // Check if current schematic has been modified
+    if( m_chemSchematic->IsModified() )
+    {
+        wxMessageDialog dlg( this, _( "Save changes to the current schematic?" ),
+                           _( "Save Changes" ), wxYES_NO | wxCANCEL | wxICON_QUESTION );
+        
+        int ret = dlg.ShowModal();
+        
+        if( ret == wxID_CANCEL )
+            return;
+        
+        if( ret == wxID_YES )
+        {
+            if( !SaveSchematic( m_currentFile.GetFullPath() ) )
+                return;
+        }
+    }
+    
+    // Clear the current schematic
+    m_chemSchematic->Clear();
+    
+    // Reset the current file
+    m_currentFile.Clear();
+    
+    // Update the view
+    UpdateView();
+    
+    // Update the title bar
+    UpdateTitleBar();
+}
+
+
+bool CHEM_EDIT_FRAME::OpenSchematic( const wxString& aFileName )
+{
+    // Check if current schematic has been modified
+    if( m_chemSchematic->IsModified() )
+    {
+        wxMessageDialog dlg( this, _( "Save changes to the current schematic?" ),
+                           _( "Save Changes" ), wxYES_NO | wxCANCEL | wxICON_QUESTION );
+        
+        int ret = dlg.ShowModal();
+        
+        if( ret == wxID_CANCEL )
+            return false;
+        
+        if( ret == wxID_YES )
+        {
+            if( !SaveSchematic( m_currentFile.GetFullPath() ) )
+                return false;
+        }
+    }
+    
+    // Clear the current schematic
+    m_chemSchematic->Clear();
+    
+    // Set the current file
+    wxFileName fileName( aFileName );
+    SetCurrentFile( fileName );
+    
+    // TODO: Implement actual file loading
+    // For now, just create a new schematic
+    
+    // Update the view
+    UpdateView();
+    
+    // Update the title bar
+    UpdateTitleBar();
+    
+    return true;
+}
+
+
+bool CHEM_EDIT_FRAME::SaveSchematic( const wxString& aFileName )
+{
+    // If no file name is provided, show a file dialog
+    wxString fileName = aFileName;
+    
+    if( fileName.IsEmpty() )
+    {
+        wxFileDialog dlg( this, _( "Save Chemical Process Flow Diagram" ), wxEmptyString,
+                        wxEmptyString, _( "Chemical Process Flow Diagram Files (*.chem)|*.chem" ),
+                        wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+        
+        if( dlg.ShowModal() == wxID_CANCEL )
+            return false;
+        
+        fileName = dlg.GetPath();
+    }
+    
+    // Set the current file
+    wxFileName fn( fileName );
+    SetCurrentFile( fn );
+    
+    // TODO: Implement actual file saving
+    // For now, just mark the schematic as not modified
+    m_chemSchematic->SetModified( false );
+    
+    // Update the title bar
+    UpdateTitleBar();
+    
+    return true;
+}
+
+
+void CHEM_EDIT_FRAME::UpdateView()
+{
+    // Update the view with the current display options
+    m_chemView->UpdateDisplayOptions( *m_displayOptions );
+}
+
+
+void CHEM_EDIT_FRAME::UpdateTitleBar()
+{
+    wxString title;
+    
+    if( m_currentFile.IsOk() )
+    {
+        title = m_currentFile.GetFullName();
+        
+        if( m_chemSchematic->IsModified() )
+            title += wxT( " *" );
+    }
+    else
+    {
+        title = wxT( "Untitled" );
+        
+        if( m_chemSchematic->IsModified() )
+            title += wxT( " *" );
+    }
+    
+    title += wxT( " - Chemical Process Flow Diagram Editor" );
+    
+    SetTitle( title );
+}
+
+
+void CHEM_EDIT_FRAME::UpdateStatusBar()
+{
+    // Update the status bar with current information
+    if( GetStatusBar() )
+    {
+        GetStatusBar()->SetStatusText( _( "Ready" ), 0 );
+        
+        if( m_currentFile.IsOk() )
+            GetStatusBar()->SetStatusText( m_currentFile.GetFullPath(), 1 );
+        else
+            GetStatusBar()->SetStatusText( _( "Untitled" ), 1 );
+    }
+}
+
+
+void CHEM_EDIT_FRAME::UpdateToolbar()
+{
+    // TODO: Implement toolbar update
+}
+
+
+void CHEM_EDIT_FRAME::UpdateMenuBar()
+{
+    // TODO: Implement menu bar update
+}
+
+
+void CHEM_EDIT_FRAME::SetCurrentFile( const wxFileName& aFileName )
+{
+    m_currentFile = aFileName;
+    m_chemSchematic->SetFilename( aFileName );
+}
+
+
+const wxFileName& CHEM_EDIT_FRAME::GetCurrentFile() const
+{
+    return m_currentFile;
 } 

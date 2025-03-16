@@ -25,6 +25,7 @@
 #include <wx/file.h>
 #include "chem_schematic.h"
 #include "chem_edit_frame.h"
+#include <algorithm>
 
 CHEM_SCHEMATIC::CHEM_SCHEMATIC( CHEM_EDIT_FRAME* aFrame ) : EDA_ITEM( nullptr )
 {
@@ -114,4 +115,141 @@ void CHEM_SCHEMATIC::RemoveItem( EDA_ITEM* aItem )
 void CHEM_SCHEMATIC::UpdateView()
 {
     // Will need to implement view update when rendering system is in place
+}
+
+
+CHEM_SCHEMATIC::CHEM_SCHEMATIC() :
+    m_modified( false )
+{
+    m_title = wxT( "New Chemical Process Flow Diagram" );
+}
+
+
+void CHEM_SCHEMATIC::AddSymbol( CHEM_SYMBOL* aSymbol )
+{
+    if( aSymbol )
+    {
+        m_symbols.push_back( aSymbol );
+        m_modified = true;
+    }
+}
+
+
+void CHEM_SCHEMATIC::RemoveSymbol( CHEM_SYMBOL* aSymbol )
+{
+    if( aSymbol )
+    {
+        auto it = std::find( m_symbols.begin(), m_symbols.end(), aSymbol );
+        
+        if( it != m_symbols.end() )
+        {
+            m_symbols.erase( it );
+            m_modified = true;
+        }
+    }
+}
+
+
+const std::vector<CHEM_SYMBOL*>& CHEM_SCHEMATIC::GetSymbols() const
+{
+    return m_symbols;
+}
+
+
+void CHEM_SCHEMATIC::AddConnection( CHEM_CONNECTION* aConnection )
+{
+    if( aConnection )
+    {
+        m_connections.push_back( aConnection );
+        m_modified = true;
+    }
+}
+
+
+void CHEM_SCHEMATIC::RemoveConnection( CHEM_CONNECTION* aConnection )
+{
+    if( aConnection )
+    {
+        auto it = std::find( m_connections.begin(), m_connections.end(), aConnection );
+        
+        if( it != m_connections.end() )
+        {
+            m_connections.erase( it );
+            m_modified = true;
+        }
+    }
+}
+
+
+const std::vector<CHEM_CONNECTION*>& CHEM_SCHEMATIC::GetConnections() const
+{
+    return m_connections;
+}
+
+
+void CHEM_SCHEMATIC::AddLabel( CHEM_LABEL* aLabel )
+{
+    if( aLabel )
+    {
+        m_labels.push_back( aLabel );
+        m_modified = true;
+    }
+}
+
+
+void CHEM_SCHEMATIC::RemoveLabel( CHEM_LABEL* aLabel )
+{
+    if( aLabel )
+    {
+        auto it = std::find( m_labels.begin(), m_labels.end(), aLabel );
+        
+        if( it != m_labels.end() )
+        {
+            m_labels.erase( it );
+            m_modified = true;
+        }
+    }
+}
+
+
+const std::vector<CHEM_LABEL*>& CHEM_SCHEMATIC::GetLabels() const
+{
+    return m_labels;
+}
+
+
+void CHEM_SCHEMATIC::SetFilename( const wxFileName& aFilename )
+{
+    m_filename = aFilename;
+}
+
+
+const wxFileName& CHEM_SCHEMATIC::GetFilename() const
+{
+    return m_filename;
+}
+
+
+void CHEM_SCHEMATIC::SetTitle( const wxString& aTitle )
+{
+    m_title = aTitle;
+    m_modified = true;
+}
+
+
+const wxString& CHEM_SCHEMATIC::GetTitle() const
+{
+    return m_title;
+}
+
+
+void CHEM_SCHEMATIC::SetModified( bool aModified )
+{
+    m_modified = aModified;
+}
+
+
+bool CHEM_SCHEMATIC::IsModified() const
+{
+    return m_modified;
 } 

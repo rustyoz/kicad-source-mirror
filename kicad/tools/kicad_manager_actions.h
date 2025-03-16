@@ -46,6 +46,8 @@ public:
     static TOOL_ACTION editSymbols;
     static TOOL_ACTION editPCB;
     static TOOL_ACTION editFootprints;
+    static TOOL_ACTION editChemSchema;
+    static TOOL_ACTION editChemLayout;
     static TOOL_ACTION viewGerbers;
     static TOOL_ACTION convertImage;
     static TOOL_ACTION showCalculator;

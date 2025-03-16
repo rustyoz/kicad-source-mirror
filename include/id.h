@@ -185,6 +185,18 @@ enum main_id
     // These values are stored in eeschema_id.h
     ID_POPUP_MENU_END = ID_POPUP_MENU_START + 2048,
 
+    ID_TB_OPTIONS_SHOW_LAYERS_MANAGER,
+    ID_TB_OPTIONS_SHOW_MICROWAVES,
+    ID_TB_OPTIONS_SHOW_CONVERT_TOOL,
+    ID_TB_OPTIONS_SHOW_3D_VIEWER,
+    ID_TB_OPTIONS_SHOW_FOOTPRINT_EXPLORER,
+    ID_TB_OPTIONS_SHOW_CHEMSCHEMA,     // Chemical Process Flow Diagram Editor
+    ID_TB_OPTIONS_SHOW_CHEMLAYOUT,     // Chemical Reactor Layout Editor
+
+    ID_BACKANNO_MODULES,
+    ID_RUN_CHEMSCHEMA,                 // Run Chemical Process Flow Diagram Editor
+    ID_RUN_CHEMLAYOUT,                 // Run Chemical Reactor Layout Editor
+
     ID_END_LIST
 };
 

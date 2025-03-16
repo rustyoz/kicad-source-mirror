@@ -151,6 +151,12 @@ void PANEL_KICAD_LAUNCHER::CreateLaunchers()
     addLauncher( KICAD_MANAGER_ACTIONS::editFootprints, BITMAPS::icon_modedit,
                  _( "Edit global and/or project PCB footprint libraries" ) );
 
+    addLauncher( KICAD_MANAGER_ACTIONS::editChemSchema, BITMAPS::icon_eeschema,
+                 _( "Create and edit chemical process flow diagrams" ) );
+
+    addLauncher( KICAD_MANAGER_ACTIONS::editChemLayout, BITMAPS::icon_pcbnew,
+                 _( "Create and edit chemical reactor layout diagrams" ) );
+
     addLauncher( KICAD_MANAGER_ACTIONS::viewGerbers, BITMAPS::icon_gerbview,
                  _( "Preview Gerber files" ) );
 

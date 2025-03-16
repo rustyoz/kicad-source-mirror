@@ -1182,6 +1182,8 @@ add_subdirectory( bitmap2component )
 add_subdirectory( pcb_calculator )
 add_subdirectory( plugins )             # 3D plugins must be built before kicad
 add_subdirectory( cvpcb )               # must be after pcbnew
+add_subdirectory( chemschema )          # new chemical process flow diagram editor
+#add_subdirectory( chemlayout )          # new chemical reactor layout editor
 add_subdirectory( kicad )               # should follow pcbnew, eeschema, api
 add_subdirectory( tools )
 add_subdirectory( utils )

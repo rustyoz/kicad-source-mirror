@@ -21,14 +21,14 @@ set( CHEMLAYOUT_COMMON_SRCS
     chem_shape.cpp
     chem_text.cpp
     chem_textbox.cpp
-    chem_reactor.cpp
-    chem_pipe.cpp
-    chem_valve.cpp
-    chem_pump.cpp
-    chem_vessel.cpp
-    chem_sensor.cpp
-    chem_group.cpp
-    chem_dimension.cpp
+ #   chem_reactor.cpp
+#   chem_pipe.cpp
+#   chem_valve.cpp
+#   chem_pump.cpp
+#   chem_vessel.cpp
+#   chem_sensor.cpp
+#   chem_group.cpp
+#   chem_dimension.cpp
     )
 
 set( CHEMLAYOUT_DIALOGS

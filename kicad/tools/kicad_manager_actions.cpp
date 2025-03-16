@@ -150,6 +150,28 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::editFootprints( TOOL_ACTION_ARGS()
         .Flags( AF_NONE )
         .Parameter( FRAME_FOOTPRINT_EDITOR ) );
 
+TOOL_ACTION KICAD_MANAGER_ACTIONS::editChemSchema( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.editChemSchema" )
+        .Scope( AS_GLOBAL )
+        .DefaultHotkey( MD_CTRL + 'C' )
+        .LegacyHotkeyName( "Run ChemSchema" )
+        .FriendlyName( _( "Chemical Process Flow Diagram Editor" ) )
+        .Tooltip( _( "Create and edit chemical process flow diagrams" ) )
+        .Icon( BITMAPS::icon_eeschema_24 )
+        .Flags( AF_NONE )
+        .Parameter( FRAME_CHEM_SCHEMA ) );
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::editChemLayout( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.editChemLayout" )
+        .Scope( AS_GLOBAL )
+        .DefaultHotkey( MD_CTRL + 'H' )
+        .LegacyHotkeyName( "Run ChemLayout" )
+        .FriendlyName( _( "Chemical Reactor Layout Editor" ) )
+        .Tooltip( _( "Create and edit chemical reactor layout diagrams" ) )
+        .Icon( BITMAPS::icon_pcbnew_24 )
+        .Flags( AF_NONE )
+        .Parameter( FRAME_CHEM_LAYOUT ) );
+
 TOOL_ACTION KICAD_MANAGER_ACTIONS::viewGerbers( TOOL_ACTION_ARGS()
         .Name( "kicad.Control.viewGerbers" )
         .Scope( AS_GLOBAL )
