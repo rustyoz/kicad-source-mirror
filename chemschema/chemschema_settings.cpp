@@ -24,18 +24,17 @@
 #include <settings/parameters.h>
 #include "chemschema_settings.h"
 
+// Schema version for the chemschema settings
+const int chemschemaSchemaVersion = 0;
 
 CHEMSCHEMA_SETTINGS::CHEMSCHEMA_SETTINGS() :
-        APP_SETTINGS_BASE( "chemschema" ),
-        m_System( "system" ),
-        m_Window( "window" ),
-        m_General( "general" )
+        APP_SETTINGS_BASE( "chemschema", chemschemaSchemaVersion )
 {
     m_params.emplace_back( new PARAM<wxString>( "project.last_symbol_lib_dir",
             &m_lastLibDir, "" ) );
 
-    m_params.emplace_back( new PARAM<double>( "window.grid.last_size",
-            &m_Window.grid.last_size, 50.0 ) );
+    m_params.emplace_back( new PARAM<int>( "window.grid.last_size_idx",
+            &m_Window.grid.last_size_idx, 0 ) );
 
     m_params.emplace_back( new PARAM<bool>( "window.grid.show",
             &m_Window.grid.show, true ) );

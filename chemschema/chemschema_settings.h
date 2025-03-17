@@ -39,6 +39,23 @@ namespace CHEMSCHEMA
 class CHEMSCHEMA_SETTINGS : public APP_SETTINGS_BASE
 {
 public:
+    struct WINDOW_SETTINGS
+    {
+        GRID_SETTINGS grid;
+        // Add more window settings as needed
+    };
+
+    struct GENERAL_SETTINGS
+    {
+        bool use_line_thickness;
+        // Add more general settings as needed
+    };
+
+    struct SYSTEM_SETTINGS
+    {
+        // System settings will go here
+    };
+
     CHEMSCHEMA_SETTINGS();
 
     virtual ~CHEMSCHEMA_SETTINGS() {}
@@ -47,6 +64,12 @@ public:
 
 protected:
     virtual std::string getLegacyFrameName() const override { return "ChemSchema"; }
+
+public:
+    wxString m_lastLibDir;
+    WINDOW_SETTINGS m_Window;
+    GENERAL_SETTINGS m_General;
+    SYSTEM_SETTINGS m_System;
 };
 
 #endif  // CHEMSCHEMA_SETTINGS_H 

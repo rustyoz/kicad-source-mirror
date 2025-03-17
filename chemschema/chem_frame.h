@@ -27,6 +27,8 @@
 #include <kiway_player.h>
 #include <eda_base_frame.h>
 #include <wx/gdicmn.h>
+#include <gal/gal_display_options.h>
+#include <class_draw_panel_gal.h>
 
 class CHEM_SCHEMATIC;
 class CHEM_VIEW;
@@ -38,7 +40,7 @@ class wxAuiToolBar;
 class CHEM_FRAME : public KIWAY_PLAYER
 {
 public:
-    CHEM_FRAME( KIWAY* aKiway, wxWindow* aParent );
+    CHEM_FRAME( KIWAY* aKiway, wxWindow* aParent = nullptr );
     ~CHEM_FRAME();
 
     /**
@@ -65,25 +67,25 @@ public:
      * Function ReCreateMenuBar
      * Creates the main menu bar
      */
-    void ReCreateMenuBar() override;
+    void ReCreateMenuBar();
 
     /**
      * Function ReCreateHToolbar
      * Creates the main horizontal toolbar
      */
-    void ReCreateHToolbar() override;
+    void ReCreateHToolbar();
 
     /**
      * Function ReCreateVToolbar
      * Creates the left vertical toolbar
      */
-    void ReCreateVToolbar() override;
+    void ReCreateVToolbar();
 
     /**
      * Function ReCreateOptToolbar
      * Creates the options toolbar
      */
-    void ReCreateOptToolbar() override;
+    void ReCreateOptToolbar();
 
     /**
      * Function LoadSettings
@@ -101,6 +103,12 @@ public:
      * Load a chemical schematic from a file
      */
     bool LoadChemSchematic( const wxString& aFileName );
+
+    /**
+     * Returns the canvas used for the tooling system.
+     * Required by TOOLS_HOLDER
+     */
+    wxWindow* GetToolCanvas() const override;
 
 protected:
     /**

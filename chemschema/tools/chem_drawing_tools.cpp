@@ -42,6 +42,7 @@
 #include "../chem_junction.h"
 #include "../chem_label.h"
 #include "../chem_screen.h"
+#include "../chem_includes.h"
 
 using namespace std;
 

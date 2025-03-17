@@ -26,7 +26,7 @@
 
 #include <eda_text.h>
 #include "chem_item.h"
-#include <color4d.h>
+#include "chem_includes.h"
 
 class PLOTTER;
 

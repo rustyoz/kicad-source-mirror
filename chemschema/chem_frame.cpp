@@ -28,6 +28,8 @@
 #include <tool/tool_manager.h>
 #include <tool/action_toolbar.h>
 #include <kiface_base.h>
+#include <gal/gal_display_options.h>
+#include <class_draw_panel_gal.h>
 
 #include "chem_frame.h"
 #include "chem_schematic.h"
@@ -169,6 +171,15 @@ void CHEM_FRAME::ReCreateOptToolbar()
     
     // Add to the AUI manager
     m_auimgr.AddPane( m_optionsToolBar, EDA_PANE().VToolbar().Name( "OptionsToolbar" ).Right().Position( 0 ) );
+}
+
+
+wxWindow* CHEM_FRAME::GetToolCanvas() const
+{
+    // Return the canvas that should be used for tools
+    // For now, returning nullptr since we don't have a proper canvas implementation yet
+    // In a real implementation, this would return m_canvas or equivalent
+    return nullptr;
 }
 
 

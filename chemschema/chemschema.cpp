@@ -24,6 +24,7 @@
 #include <kiface_base.h>
 #include <kiway.h>
 #include <pgm_base.h>
+#include <settings/settings_manager.h>
 #include <wx/app.h>
 #include <wx/event.h>
 #include <wx/log.h>
@@ -31,11 +32,20 @@
 #include <wx/window.h>
 #include <wx/cmdline.h>
 #include <wx/filename.h>
+#include <frame_type.h>
 
 #include "chem_frame.h"
+#include "chemschema_settings.h"
+
+// Define the chemical schema frame type ID
+#define FRAME_CHEM_SCHEMA FRAME_SCH_SYMBOL_EDITOR
+
+// Global singleton pointer count - for standalone mode
+static int kiChemschemaSingletonCount = 0;
 
 /**
  * Main application class for the Chemical Process Flow Diagram editor
+ * This is used for standalone mode
  */
 class CHEM_SCHEMA_APP : public wxApp
 {
@@ -47,50 +57,87 @@ public:
      */
     bool OnInit() override
     {
-        CHEM_FRAME* frame = new CHEM_FRAME( nullptr, nullptr );
-        SetTopWindow( frame );
-        frame->Show( true );
+        // In standalone mode, we need to create the frame differently
+        // Use nullptr for KIWAY since we're not integrated into a project
+        CHEM_FRAME* frame = new CHEM_FRAME( nullptr );
         
-        return true;
+        if( frame )
+        {
+            SetTopWindow( frame );
+            frame->Show( true );
+            return true;
+        }
+        
+        return false;
     }
 };
 
 wxIMPLEMENT_APP( CHEM_SCHEMA_APP );
 
 /**
- * KIFACE_I implementation for the Chemical Process Flow Diagram editor
+ * KIFACE implementation for the Chemical Process Flow Diagram editor
  */
 namespace CHEMSCHEMA {
 
-static struct IFACE : public KIFACE_I
+static struct IFACE : public KIFACE_BASE
 {
     // Of course all are overloads, implementations of virtual functions in KIFACE_I
 
-    bool OnKifaceStart( PGM_BASE* aProgram, int aCtlBits ) override
+    IFACE() : KIFACE_BASE( "chemschema", KIWAY::FACE_SCH )
     {
-        return start_common( aProgram );
+        m_settings_manager = nullptr;
+    }
+
+    bool OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway ) override
+    {
+        m_settings_manager = new SETTINGS_MANAGER;
+        
+        // Load chemschema settings - store result to avoid unused variable warning
+        m_settings_manager->GetAppSettings<CHEMSCHEMA_SETTINGS>( "chemschema" );
+
+        return start_common( aCtlBits );
     }
     
     void OnKifaceEnd() override
     {
+        if( m_settings_manager )
+        {
+            delete m_settings_manager;
+            m_settings_manager = nullptr;
+        }
+        
         end_common();
     }
     
-    wxWindow* CreateWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway,
-                            int aCtlBits = 0 ) override
+    wxWindow* CreateKiWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway,
+                             int aCtlBits = 0 ) override
     {
+        wxASSERT( m_settings_manager );
+
         switch( aClassId )
         {
         case FRAME_CHEM_SCHEMA:
             {
                 CHEM_FRAME* frame = new CHEM_FRAME( aKiway, aParent );
-                return frame;
+
+                if( frame )
+                {
+                    // Set up any frame-specific initialization here
+                    if( IsSingle() )
+                    {
+                        kiChemschemaSingletonCount++;
+                    }
+                    
+                    return frame;
+                }
             }
             break;
             
         default:
             return nullptr;
         }
+        
+        return nullptr;
     }
     
     /**
@@ -103,94 +150,25 @@ static struct IFACE : public KIFACE_I
      */
     void* IfaceOrAddress( int aDataId ) override
     {
-        return NULL;
+        return nullptr;
     }
     
-    /**
-     * Function ReturnSingle
-     * is a simplified version of CreateWindow() for use when there can be only one
-     * main window of aClassId open at a time.
-     */
-    wxWindow* ReturnSingle( wxWindow* aParent, int aClassId, KIWAY* aKiway,
-                            int aCtlBits, wxString* aWindowTitle = nullptr ) override
+    SETTINGS_MANAGER& GetSettingsManager() const
     {
-        return CreateWindow( aParent, aClassId, aKiway, aCtlBits );
+        wxASSERT( m_settings_manager );
+        return *m_settings_manager;
     }
+    
+private:
+    SETTINGS_MANAGER* m_settings_manager;
 
 } kiface;
 
 } // namespace
 
-static KIFACE_I& Kiface() { return CHEMSCHEMA::kiface; }
-
-// KIFACE_GETTER's job is to create KIFACE on demand and return it.
-KIFACE_GETTER( &Kiface )
-
-// KIFACE_GETTER_EXTRA is macro debris left from a previous API, not used in C++ context.
-KIFACE_GETTER_EXTRA( "This is the Chemical Process Flow Diagram editor." )
-
-
-bool IFACE::OnKifaceStart( PGM_BASE* aProgram, int aCtlBits )
+// KIFACE_GETTER's actual spelling is a substitution macro found in kiway.h.
+// KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
+KIFACE_API KIFACE* KIFACE_GETTER( int* aKIFACEversion, int aKiwayVersion, PGM_BASE* aProgram )
 {
-    m_settings_manager = new SETTINGS_MANAGER;
-    m_settings_manager->Init();
-
-    // Ensure that default values are loaded into CHEMSCHEMA_SETTINGS
-    // before the frame is created
-    auto chemschemaSetting = m_settings_manager->GetAppSettings<CHEMSCHEMA_SETTINGS>();
-
-    return true;
-}
-
-
-void IFACE::OnKifaceEnd()
-{
-    delete m_settings_manager;
-    m_settings_manager = nullptr;
-}
-
-
-SETTINGS_MANAGER& IFACE::GetSettingsManager()
-{
-    wxASSERT( m_settings_manager );
-    return *m_settings_manager;
-}
-
-
-wxWindow* IFACE::CreateWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway, int aCtlBits )
-{
-    wxASSERT( m_settings_manager );
-
-    switch( aClassId )
-    {
-    case FRAME_CHEM_SCHEMA:
-    {
-        CHEM_FRAME* frame = new CHEM_FRAME( aKiway, aParent );
-
-        if( frame )
-        {
-            frame->SwitchColorScheme( aKiway->CommonSettings().GetColorTheme() );
-
-            if( Kiface().IsSingle() )
-            {
-                kiChemschemaSingletonCount++;
-                return frame;
-            }
-            
-            return frame;
-        }
-    }
-    break;
-
-    default:
-        return nullptr;
-    }
-
-    return nullptr;
-}
-
-
-void* IFACE::IfaceOrAddress( int aDataId )
-{
-    return nullptr;
+    return &CHEMSCHEMA::kiface;
 } 

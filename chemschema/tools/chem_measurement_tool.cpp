@@ -35,7 +35,7 @@
 #include "chem_measurement_tool.h"
 #include "../chem_edit_frame.h"
 #include "../chem_schematic.h"
-#include "../chem_actions.h"
+#include "../chem_includes.h"
 
 using namespace std;
 

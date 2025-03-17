@@ -21,10 +21,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <plotter.h>
+#include "chem_screen.h"
+#include "chem_includes.h"
+// Comment out the problematic include
+// #include <plotter.h>
 #include <trigo.h>
 #include <eda_search.h>
-#include "chem_screen.h"
 
 CHEM_SCREEN::CHEM_SCREEN( const IU_PER_MILS& aIUScale ) :
     CHEM_ITEM( CHEM_ITEM::SCREEN )

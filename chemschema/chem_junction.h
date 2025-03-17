@@ -26,7 +26,7 @@
 
 #include <wx/gdicmn.h>
 #include "chem_item.h"
-#include <color4d.h>
+#include "chem_includes.h"
 
 class PLOTTER;
 

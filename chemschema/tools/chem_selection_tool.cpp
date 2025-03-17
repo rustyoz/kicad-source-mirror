@@ -31,7 +31,7 @@
 #include <view/view_controls.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <geometry/seg.h>
-#include <collectors.h>
+#include "../chem_includes.h"
 #include <confirm.h>
 
 #include "chem_selection_tool.h"
