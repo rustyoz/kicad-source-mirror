@@ -25,113 +25,120 @@
 #define CHEM_MEASUREMENT_TOOL_H
 
 #include <tool/tool_interactive.h>
-#include <wx/gdicmn.h>
-#include <vector>
+#include <tool/tool_event.h>
+#include <tool/actions.h>
 #include <view/view.h>
+#include <view/view_controls.h>
+#include <gal/graphics_abstraction_layer.h>
+#include <gal/color4d.h>
+#include <gal/definitions.h>
 #include <math/vector2d.h>
+#include "../chem_actions.h"
 
 class CHEM_EDIT_FRAME;
-class CHEM_SCHEMATIC;
-class KIGFX::GAL;
-class KIID;
 
 /**
- * @brief Tool for measuring distances and angles in chemical schematics.
- *
- * This tool allows users to measure distances between points, measure angles
- * between lines, and display the coordinates of selected points.
+ * Tool for measuring distances and angles in the chemical schematic editor.
  */
 class CHEM_MEASUREMENT_TOOL : public TOOL_INTERACTIVE
 {
 public:
+    /**
+     * Constructor
+     */
     CHEM_MEASUREMENT_TOOL();
+
+    /**
+     * Destructor
+     */
     ~CHEM_MEASUREMENT_TOOL();
 
-    /// Tool name identifier
-    static const char* GetToolName() { return "chemschema.MeasurementTool"; }
-    
-    /// Main run function that handles measurements
-    int Main( const TOOL_EVENT& aEvent );
-    
-    /// Reset tool state when activated
+    /**
+     * Reset the tool state
+     * @param aReason - Reason for the reset
+     */
     void Reset( RESET_REASON aReason ) override;
-    
-    /**
-     * @brief Measure distance between two points.
-     * @param aEvent The tool event
-     * @return 0 on success
-     */
-    int MeasureDistance( const TOOL_EVENT& aEvent );
-    
-    /**
-     * @brief Measure angle between three points or two lines.
-     * @param aEvent The tool event
-     * @return 0 on success
-     */
-    int MeasureAngle( const TOOL_EVENT& aEvent );
 
     /**
-     * @brief Setup transitions for this tool
+     * Initialize this tool
      */
     void setTransitions() override;
 
+    /**
+     * Main loop for this tool
+     * @param aEvent - Tool activation event
+     */
+    int Main( const TOOL_EVENT& aEvent );
+
+    /**
+     * Handler for the measure distance command
+     * @param aEvent - Tool event
+     */
+    int MeasureDistance( const TOOL_EVENT& aEvent );
+
+    /**
+     * Handler for the measure angle command
+     * @param aEvent - Tool event
+     */
+    int MeasureAngle( const TOOL_EVENT& aEvent );
+
 private:
-    enum MEASUREMENT_MODE
-    {
+    /**
+     * Draw the current measurement
+     */
+    void DrawMeasurement();
+
+    /**
+     * Clear the current measurement
+     */
+    void ClearMeasurement();
+
+    /**
+     * Get the current cursor position
+     * @return Current cursor position
+     */
+    VECTOR2I GetCursorPosition();
+
+    /**
+     * Add a point to the measurement
+     * @param aPoint - Point to add
+     */
+    void AddPoint( const VECTOR2I& aPoint );
+
+    /**
+     * Calculate the distance between two points
+     * @param aStart - Start point
+     * @param aEnd - End point
+     * @return Distance in mm
+     */
+    double CalculateDistance( const VECTOR2I& aStart, const VECTOR2I& aEnd );
+
+    /**
+     * Calculate the angle between three points
+     * @param aPoint1 - First point
+     * @param aPoint2 - Vertex point
+     * @param aPoint3 - Third point
+     * @return Angle in degrees
+     */
+    double CalculateAngle( const VECTOR2I& aPoint1, const VECTOR2I& aPoint2, const VECTOR2I& aPoint3 );
+
+    /**
+     * Display a measurement message
+     * @param aMessage - Message to display
+     */
+    void DisplayMeasurement( const wxString& aMessage );
+
+    // Measurement mode
+    enum MEASUREMENT_MODE {
         MEASUREMENT_DISTANCE,
         MEASUREMENT_ANGLE
     };
 
-    /**
-     * @brief Draw preview of measurement
-     */
-    void DrawMeasurement();
-    
-    /**
-     * @brief Clear the current measurement and preview
-     */
-    void ClearMeasurement();
-    
-    /**
-     * @brief Get the current cursor position
-     * @return The cursor position in screen coordinates
-     */
-    VECTOR2I GetCursorPosition();
-    
-    /**
-     * @brief Add a point to the current measurement
-     * @param aPoint The point to add
-     */
-    void AddPoint( const VECTOR2I& aPoint );
-    
-    /**
-     * @brief Calculate distance between two points
-     * @param aStart The start point
-     * @param aEnd The end point
-     * @return The distance in current units
-     */
-    double CalculateDistance( const VECTOR2I& aStart, const VECTOR2I& aEnd );
-    
-    /**
-     * @brief Calculate angle between three points
-     * @param aPoint1 First point
-     * @param aPoint2 Second point (vertex)
-     * @param aPoint3 Third point
-     * @return The angle in degrees
-     */
-    double CalculateAngle( const VECTOR2I& aPoint1, const VECTOR2I& aPoint2, const VECTOR2I& aPoint3 );
-    
-    /**
-     * @brief Display measurement on status bar
-     * @param aMessage The message to display
-     */
-    void DisplayMeasurement( const wxString& aMessage );
-
-private:
-    CHEM_EDIT_FRAME*        m_frame;          ///< The current edit frame
-    MEASUREMENT_MODE        m_measureMode;    ///< Current measurement mode
-    std::vector<VECTOR2I>   m_points;         ///< Points gathered for measurement
-    bool                    m_measureInProgress; ///< Indicates if measurement is in progress
+    // Private members
+    CHEM_EDIT_FRAME* m_frame;
+    MEASUREMENT_MODE m_measureMode;
+    bool m_measureInProgress;
+    std::vector<VECTOR2I> m_points;
 };
 
 #endif // CHEM_MEASUREMENT_TOOL_H 

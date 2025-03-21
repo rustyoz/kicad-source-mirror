@@ -3,6 +3,9 @@
 boost_root
 /Build*
 /build*
+/out*
+/CMakeFiles*
+.cursor*
 /cmake-build-*
 common/fp_lib_table_keywords.cpp
 common/drc_rules_keywords.cpp

@@ -27,164 +27,128 @@
 #include <vector>
 #include <wx/string.h>
 #include <wx/filename.h>
+#include <schematic.h>
+#include "chem_item.h"
+#include "chem_screen.h"
+#include "chem_sheet_path.h"
+#include "chem_symbol.h"
+#include "chem_connection.h"
+#include "chem_label.h"
 
-// Forward declarations
-class CHEM_SYMBOL;
-class CHEM_CONNECTION;
-class CHEM_LABEL;
-
-/**
- * Enum for chemical schematic layers
- */
-enum CHEM_LAYER_ID
-{
-    CHEM_LAYER_BACKGROUND,
-    CHEM_LAYER_GRID,
-    CHEM_LAYER_CONNECTIONS,
-    CHEM_LAYER_SYMBOLS,
-    CHEM_LAYER_LABELS,
-    CHEM_LAYER_SELECTION,
-    CHEM_LAYER_ID_COUNT
-};
+class CHEM_SHEET;
 
 /**
- * Class to store display options for the chemical schematic
+ * Class CHEM_SCHEMATIC
+ * Represents a chemical process flow diagram.
  */
-class CHEM_DISPLAY_OPTIONS
+class CHEM_SCHEMATIC : public SCHEMATIC
 {
 public:
-    bool m_showGrid;
-    bool m_showLabels;
-    bool m_showConnections;
-    bool m_showSymbols;
-    
-    CHEM_DISPLAY_OPTIONS() :
-        m_showGrid( true ),
-        m_showLabels( true ),
-        m_showConnections( true ),
-        m_showSymbols( true )
+    CHEM_SCHEMATIC( PROJECT* aPrj );
+    CHEM_SCHEMATIC( const CHEM_SCHEMATIC& other );
+    virtual ~CHEM_SCHEMATIC();
+
+    virtual wxString GetClass() const override
     {
+        return wxT( "CHEM_SCHEMATIC" );
     }
-};
 
-/**
- * Class to represent a chemical process flow diagram
- */
-class CHEM_SCHEMATIC
-{
-public:
+    /// Initialize this schematic to a blank one, unloading anything existing.
+    void Reset();
+
+    /// A simple test if the schematic is loaded, not a complete one
+    bool IsValid() const
+    {
+        return m_rootSheet != nullptr;
+    }
+
     /**
-     * Constructor
+     * Initialize the schematic with a new root sheet.
+     *
+     * This is typically done by calling a file loader that returns the new root sheet
+     * As a side-effect, takes care of some post-load initialization.
+     *
+     * @param aRootSheet is the new root sheet for this schematic.
      */
-    CHEM_SCHEMATIC();
-    
+    void SetRoot( CHEM_SHEET* aRootSheet );
+
+    /// Helper to retrieve the screen of the root sheet
+    CHEM_SCREEN* RootScreen() const;
+
+    /// Helper to retrieve the filename from the root sheet screen
+    wxString GetFileName() const;
+
+    CHEM_SHEET_PATH& CurrentSheet() const
+    {
+        return *m_currentSheet;
+    }
+
+    void SetCurrentSheet( const CHEM_SHEET_PATH& aPath )
+    {
+        *m_currentSheet = aPath;
+    }
+
+    CHEM_SHEET& Root() const
+    {
+        return *m_rootSheet;
+    }
+
     /**
-     * Destructor
+     * Return the full schematic flattened hierarchical sheet list.
      */
-    ~CHEM_SCHEMATIC();
-    
+    CHEM_SHEET_LIST Hierarchy() const;
+
+    void RefreshHierarchy();
+
     /**
-     * Clear the schematic
+     * Test if the schematic is a complex hierarchy.
+     *
+     * @return true if the schematic is a complex hierarchy or false if it's a simple hierarchy.
      */
+    bool IsComplexHierarchy() const;
+
+    // File operations
+    bool SaveFile( const wxString& aFileName );
+    bool LoadFile( const wxString& aFileName );
+
+    // Item management
+    void Add( CHEM_ITEM* aItem );
+    void Remove( CHEM_ITEM* aItem );
+    void UpdateView();
     void Clear();
-    
-    /**
-     * Add a symbol to the schematic
-     * @param aSymbol - The symbol to add
-     */
+
+    // Symbol management
     void AddSymbol( CHEM_SYMBOL* aSymbol );
-    
-    /**
-     * Remove a symbol from the schematic
-     * @param aSymbol - The symbol to remove
-     */
     void RemoveSymbol( CHEM_SYMBOL* aSymbol );
-    
-    /**
-     * Get all symbols in the schematic
-     * @return Vector of symbols
-     */
     const std::vector<CHEM_SYMBOL*>& GetSymbols() const;
-    
-    /**
-     * Add a connection to the schematic
-     * @param aConnection - The connection to add
-     */
+
+    // Connection management
     void AddConnection( CHEM_CONNECTION* aConnection );
-    
-    /**
-     * Remove a connection from the schematic
-     * @param aConnection - The connection to remove
-     */
     void RemoveConnection( CHEM_CONNECTION* aConnection );
-    
-    /**
-     * Get all connections in the schematic
-     * @return Vector of connections
-     */
     const std::vector<CHEM_CONNECTION*>& GetConnections() const;
-    
-    /**
-     * Add a label to the schematic
-     * @param aLabel - The label to add
-     */
+
+    // Label management
     void AddLabel( CHEM_LABEL* aLabel );
-    
-    /**
-     * Remove a label from the schematic
-     * @param aLabel - The label to remove
-     */
     void RemoveLabel( CHEM_LABEL* aLabel );
-    
-    /**
-     * Get all labels in the schematic
-     * @return Vector of labels
-     */
     const std::vector<CHEM_LABEL*>& GetLabels() const;
-    
-    /**
-     * Set the schematic filename
-     * @param aFilename - The filename
-     */
+
+    // File and title management
     void SetFilename( const wxFileName& aFilename );
-    
-    /**
-     * Get the schematic filename
-     * @return The filename
-     */
     const wxFileName& GetFilename() const;
-    
-    /**
-     * Set the schematic title
-     * @param aTitle - The title
-     */
     void SetTitle( const wxString& aTitle );
-    
-    /**
-     * Get the schematic title
-     * @return The title
-     */
     const wxString& GetTitle() const;
-    
-    /**
-     * Set whether the schematic has been modified
-     * @param aModified - True if modified, false otherwise
-     */
     void SetModified( bool aModified );
-    
-    /**
-     * Check if the schematic has been modified
-     * @return True if modified, false otherwise
-     */
     bool IsModified() const;
-    
-private:
-    std::vector<CHEM_SYMBOL*> m_symbols;
-    std::vector<CHEM_CONNECTION*> m_connections;
-    std::vector<CHEM_LABEL*> m_labels;
-    wxFileName m_filename;
-    wxString m_title;
-    bool m_modified;
+
+protected:
+    CHEM_SHEET* m_rootSheet;               ///< Top-level sheet in hierarchy
+    CHEM_SHEET_PATH* m_currentSheet;       ///< Currently active sheet
+    std::vector<CHEM_SYMBOL*> m_symbols;   ///< List of symbols in the schematic
+    std::vector<CHEM_CONNECTION*> m_connections; ///< List of connections in the schematic
+    std::vector<CHEM_LABEL*> m_labels;     ///< List of labels in the schematic
+    wxFileName m_filename;                 ///< The filename of the schematic
+    wxString m_title;                      ///< The title of the schematic
+    bool m_modified;                       ///< Whether the schematic has been modified
 };
 
 #endif // CHEM_SCHEMATIC_H 

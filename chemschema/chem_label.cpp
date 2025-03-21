@@ -25,6 +25,7 @@
 #include "chem_includes.h"
 // Comment out the problematic include
 // #include <plotter.h>
+#include <plotters/plotter.h>
 #include <trigo.h>
 #include <eda_search.h>
 

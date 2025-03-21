@@ -25,41 +25,221 @@
 #include "chem_includes.h"
 // Comment out the problematic include
 // #include <plotter.h>
+#include <plotters/plotter.h>
 #include <trigo.h>
 #include <eda_search.h>
+#include "chem_schematic.h"
 
-CHEM_SCREEN::CHEM_SCREEN( const IU_PER_MILS& aIUScale ) :
-    CHEM_ITEM( CHEM_ITEM::SCREEN )
+CHEM_SCREEN::CHEM_SCREEN( EDA_ITEM* aParent ) :
+    BASE_SCREEN( aParent, CHEM_SCREEN_T ),
+    m_fileFormatVersionAtLoad( 0 ),
+    m_isReadOnly( false ),
+    m_fileExists( false )
 {
-    m_screenType = FILTER;
-    m_position = VECTOR2I( 0, 0 );
-    m_size = VECTOR2I( 100, 50 ) * aIUScale;
-    m_description = wxEmptyString;
-    m_name = wxEmptyString;
-    m_rotationAngle = 0;
-    m_outlineColor = COLOR4D::BLACK;
-    m_fillColor = COLOR4D::WHITE;
-    m_lineWidth = 10 * aIUScale;
-    m_meshDensity = 5;
+    m_modification_sync = 0;
+    m_refCount = 0;
+    m_zoomInitialized = false;
+    m_LastZoomLevel = 1.0;
+    m_Center = false;
 }
 
 CHEM_SCREEN::CHEM_SCREEN( const CHEM_SCREEN& aScreen ) :
-    CHEM_ITEM( aScreen )
+    BASE_SCREEN( aScreen )
 {
-    m_screenType = aScreen.m_screenType;
-    m_position = aScreen.m_position;
-    m_size = aScreen.m_size;
-    m_description = aScreen.m_description;
-    m_name = aScreen.m_name;
-    m_rotationAngle = aScreen.m_rotationAngle;
-    m_outlineColor = aScreen.m_outlineColor;
-    m_fillColor = aScreen.m_fillColor;
-    m_lineWidth = aScreen.m_lineWidth;
-    m_meshDensity = aScreen.m_meshDensity;
+    m_fileFormatVersionAtLoad = aScreen.m_fileFormatVersionAtLoad;
+    m_isReadOnly = aScreen.m_isReadOnly;
+    m_fileExists = aScreen.m_fileExists;
+    m_modification_sync = aScreen.m_modification_sync;
+    m_refCount = aScreen.m_refCount;
+    m_zoomInitialized = aScreen.m_zoomInitialized;
+    m_LastZoomLevel = aScreen.m_LastZoomLevel;
+    m_Center = aScreen.m_Center;
 }
 
 CHEM_SCREEN::~CHEM_SCREEN()
 {
+    FreeDrawList();
+}
+
+void CHEM_SCREEN::Append( CHEM_ITEM* aItem )
+{
+    if( aItem->Type() != CHEM_PIPE_T && aItem->Type() != CHEM_FIELD_T )
+    {
+        aItem->SetParent( this );
+        m_rtree.insert( aItem );
+        --m_modification_sync;
+    }
+}
+
+void CHEM_SCREEN::Remove( CHEM_ITEM* aItem )
+{
+    bool retv = m_rtree.remove( aItem );
+    return retv;
+}
+
+void CHEM_SCREEN::Update( CHEM_ITEM* aItem )
+{
+    if( Remove( aItem ) )
+        Append( aItem );
+}
+
+void CHEM_SCREEN::Clear( bool aFree )
+{
+    if( aFree )
+    {
+        FreeDrawList();
+    }
+    else
+    {
+        m_rtree.clear();
+    }
+}
+
+void CHEM_SCREEN::FreeDrawList()
+{
+    std::vector<CHEM_ITEM*> delete_list;
+    std::copy_if( m_rtree.begin(), m_rtree.end(), std::back_inserter( delete_list ),
+            []( CHEM_ITEM* aItem )
+            {
+                return ( aItem->Type() != CHEM_PIPE_T && aItem->Type() != CHEM_FIELD_T );
+            } );
+
+    m_rtree.clear();
+
+    for( CHEM_ITEM* item : delete_list )
+        delete item;
+}
+
+bool CHEM_SCREEN::IsProcessConnected( const VECTOR2I& aPosition ) const
+{
+    for( const CHEM_ITEM* item : Items().Overlapping( aPosition ) )
+    {
+        if( item->IsConnectable() && item->IsConnected( aPosition ) )
+            return true;
+    }
+    return false;
+}
+
+std::vector<CHEM_ITEM*> CHEM_SCREEN::GetConnectedItems( const VECTOR2I& aPosition ) const
+{
+    std::vector<CHEM_ITEM*> connected;
+    
+    for( CHEM_ITEM* item : Items().Overlapping( aPosition ) )
+    {
+        if( item->IsConnectable() && item->IsConnected( aPosition ) )
+            connected.push_back( item );
+    }
+    
+    return connected;
+}
+
+void CHEM_SCREEN::UpdateEquipmentLinks( REPORTER* aReporter )
+{
+    // Update equipment symbol links and validate connections
+    for( CHEM_ITEM* item : Items().OfType( CHEM_EQUIPMENT_T ) )
+    {
+        CHEM_EQUIPMENT* equipment = static_cast<CHEM_EQUIPMENT*>( item );
+        equipment->UpdateLinks( aReporter );
+    }
+}
+
+void CHEM_SCREEN::ValidateProcessFlow()
+{
+    // Validate process flow connections and constraints
+    for( CHEM_ITEM* item : Items() )
+    {
+        if( item->IsConnectable() )
+        {
+            std::vector<VECTOR2I> connections = item->GetConnectionPoints();
+            for( const VECTOR2I& point : connections )
+            {
+                if( !IsProcessConnected( point ) )
+                {
+                    // Handle unconnected process points
+                }
+            }
+        }
+    }
+}
+
+void CHEM_SCREEN::Plot( PLOTTER* aPlotter, const CHEM_PLOT_OPTS& aPlotOpts ) const
+{
+    // Plot background items first
+    for( CHEM_ITEM* item : Items() )
+    {
+        if( !item->IsMoving() )
+        {
+            aPlotter->SetCurrentLineWidth( item->GetEffectivePenWidth() );
+            item->Plot( aPlotter, true, aPlotOpts );
+        }
+    }
+
+    // Plot foreground items
+    for( CHEM_ITEM* item : Items() )
+    {
+        if( !item->IsMoving() )
+        {
+            aPlotter->SetCurrentLineWidth( item->GetEffectivePenWidth() );
+            item->Plot( aPlotter, false, aPlotOpts );
+        }
+    }
+}
+
+bool CHEM_SCREEN::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
+{
+    for( CHEM_ITEM* item : Items().Overlapping( aPosition, aAccuracy ) )
+    {
+        if( item->HitTest( aPosition, aAccuracy ) )
+            return true;
+    }
+    return false;
+}
+
+CHEM_ITEM* CHEM_SCREEN::GetItem( const VECTOR2I& aPosition, int aAccuracy, KICAD_T aType ) const
+{
+    BOX2I bbox;
+    bbox.SetOrigin( aPosition );
+    bbox.Inflate( aAccuracy );
+
+    for( CHEM_ITEM* item : Items().Overlapping( aType, bbox ) )
+    {
+        if( item->HitTest( aPosition, aAccuracy ) )
+            return item;
+    }
+
+    return nullptr;
+}
+
+void CHEM_SCREEN::SetFileName( const wxString& aFileName )
+{
+    wxASSERT( aFileName.IsEmpty() || wxIsAbsolutePath( aFileName ) );
+    m_fileName = aFileName;
+}
+
+void CHEM_SCREEN::IncRefCount()
+{
+    m_refCount++;
+}
+
+void CHEM_SCREEN::DecRefCount()
+{
+    wxCHECK_RET( m_refCount != 0, wxT( "Screen reference count already zero. Bad programmer!" ) );
+    m_refCount--;
+}
+
+bool CHEM_SCREEN::HasItems( KICAD_T aItemType ) const
+{
+    for( const CHEM_ITEM* item : m_rtree )
+    {
+        if( item->Type() == aItemType )
+            return true;
+    }
+    return false;
+}
+
+bool CHEM_SCREEN::ClassOf( const EDA_ITEM* aItem )
+{
+    return aItem && CHEM_SCREEN_T == aItem->Type();
 }
 
 EDA_ITEM* CHEM_SCREEN::Clone() const
@@ -67,19 +247,21 @@ EDA_ITEM* CHEM_SCREEN::Clone() const
     return new CHEM_SCREEN( *this );
 }
 
-void CHEM_SCREEN::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> CHEM_SCREEN::ViewGetLayers() const
 {
-    // Screens are typically drawn on a specific layer, but can be adjusted
-    // For now, we'll use a placeholder layer index
-    aLayers[0] = 0;
-    aCount = 1;
+    std::vector<int> layers;
+    // Add default layers for chemical schematics
+    layers.push_back( LAYER_CHEM_BACKGROUND );
+    layers.push_back( LAYER_CHEM_FOREGROUND );
+    return layers;
 }
 
-void CHEM_SCREEN::SwapData( CHEM_ITEM* aItem )
+void CHEM_SCREEN::SwapData( EDA_ITEM* aItem )
 {
-    CHEM_SCREEN* other = static_cast<CHEM_SCREEN*>( aItem );
+    CHEM_SCREEN* other = dynamic_cast<CHEM_SCREEN*>( aItem );
+    if( !other )
+        return;
     
-    std::swap( m_screenType, other->m_screenType );
     std::swap( m_position, other->m_position );
     std::swap( m_size, other->m_size );
     std::swap( m_description, other->m_description );
@@ -88,9 +270,8 @@ void CHEM_SCREEN::SwapData( CHEM_ITEM* aItem )
     std::swap( m_outlineColor, other->m_outlineColor );
     std::swap( m_fillColor, other->m_fillColor );
     std::swap( m_lineWidth, other->m_lineWidth );
-    std::swap( m_meshDensity, other->m_meshDensity );
     
-    CHEM_ITEM::SwapData( aItem );
+    BASE_SCREEN::SwapData( aItem );
 }
 
 void CHEM_SCREEN::SetPosition( const VECTOR2I& aPosition )
@@ -98,7 +279,7 @@ void CHEM_SCREEN::SetPosition( const VECTOR2I& aPosition )
     m_position = aPosition;
 }
 
-const VECTOR2I& CHEM_SCREEN::GetPosition() const
+VECTOR2I CHEM_SCREEN::GetPosition() const
 {
     return m_position;
 }
@@ -111,16 +292,6 @@ void CHEM_SCREEN::SetSize( const VECTOR2I& aSize )
 const VECTOR2I& CHEM_SCREEN::GetSize() const
 {
     return m_size;
-}
-
-void CHEM_SCREEN::SetScreenType( SCREEN_TYPE aType )
-{
-    m_screenType = aType;
-}
-
-CHEM_SCREEN::SCREEN_TYPE CHEM_SCREEN::GetScreenType() const
-{
-    return m_screenType;
 }
 
 void CHEM_SCREEN::SetDescription( const wxString& aDescription )
@@ -184,72 +355,24 @@ int CHEM_SCREEN::GetLineWidth() const
     return m_lineWidth;
 }
 
-void CHEM_SCREEN::SetMeshDensity( int aDensity )
-{
-    // Clamp to 1-10 range
-    m_meshDensity = std::max( 1, std::min( 10, aDensity ) );
-}
-
-int CHEM_SCREEN::GetMeshDensity() const
-{
-    return m_meshDensity;
-}
-
-BOX2I CHEM_SCREEN::GetBoundingBox() const
+const BOX2I CHEM_SCREEN::GetBoundingBox() override const
 {
     BOX2I bbox;
-    
-    if( m_rotationAngle == 0 )
+    bool first = true;
+
+    for( const CHEM_ITEM* item : m_rtree )
     {
-        // No rotation, simple calculation
-        bbox = BOX2I( m_position - m_size / 2, m_size );
-    }
-    else
-    {
-        // With rotation, calculate the bounding box of the rotated rectangle
-        VECTOR2I halfSize = m_size / 2;
-        
-        // Calculate the four corners before rotation
-        VECTOR2I corners[4] = {
-            VECTOR2I( -halfSize.x, -halfSize.y ),
-            VECTOR2I( halfSize.x, -halfSize.y ),
-            VECTOR2I( halfSize.x, halfSize.y ),
-            VECTOR2I( -halfSize.x, halfSize.y )
-        };
-        
-        // Rotate each corner and find the bounding box
-        double angleRad = DECIDEG2RAD( m_rotationAngle );
-        double sinA = sin( angleRad );
-        double cosA = cos( angleRad );
-        
-        // Initialize with a first corner
-        VECTOR2I rotated = VECTOR2I(
-            KiROUND( corners[0].x * cosA - corners[0].y * sinA ),
-            KiROUND( corners[0].x * sinA + corners[0].y * cosA )
-        );
-        
-        VECTOR2I topLeft = m_position + rotated;
-        VECTOR2I bottomRight = topLeft;
-        
-        // Process remaining corners
-        for( int i = 1; i < 4; i++ )
+        if( first )
         {
-            rotated = VECTOR2I(
-                KiROUND( corners[i].x * cosA - corners[i].y * sinA ),
-                KiROUND( corners[i].x * sinA + corners[i].y * cosA )
-            );
-            
-            VECTOR2I pos = m_position + rotated;
-            
-            topLeft.x = std::min( topLeft.x, pos.x );
-            topLeft.y = std::min( topLeft.y, pos.y );
-            bottomRight.x = std::max( bottomRight.x, pos.x );
-            bottomRight.y = std::max( bottomRight.y, pos.y );
+            bbox = item->GetBoundingBox();
+            first = false;
         }
-        
-        bbox = BOX2I( topLeft, bottomRight - topLeft );
+        else
+        {
+            bbox.Merge( item->GetBoundingBox() );
+        }
     }
-    
+
     return bbox;
 }
 
@@ -262,183 +385,154 @@ std::vector<BOX2I> CHEM_SCREEN::GetBoundingBoxes() const
 
 wxString CHEM_SCREEN::GetSelectMenuText( EDA_UNITS aUnits ) const
 {
-    wxString menuText;
-    
-    switch( m_screenType )
-    {
-    case FILTER:
-        menuText = _( "Filter" );
-        break;
-    case MEMBRANE:
-        menuText = _( "Membrane Filter" );
-        break;
-    case SIEVE:
-        menuText = _( "Molecular Sieve" );
-        break;
-    case ION_EXCHANGE:
-        menuText = _( "Ion Exchange Filter" );
-        break;
-    case CARBON:
-        menuText = _( "Carbon Filter" );
-        break;
-    case SEPARATOR:
-        menuText = _( "Phase Separator" );
-        break;
-    case CUSTOM:
-        menuText = _( "Custom Filter" );
-        break;
-    default:
-        menuText = _( "Screen" );
-        break;
-    }
-    
-    if( !m_name.IsEmpty() )
-        menuText += wxString::Format( " '%s'", m_name );
-    
-    return menuText;
+    return wxString::Format( _( "Chemical Screen" ) );
 }
 
 BITMAPS CHEM_SCREEN::GetMenuImage() const
 {
-    return BITMAPS::filter;  // Assuming filter bitmap is available
-}
-
-bool CHEM_SCREEN::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
-{
-    // Simple hit test using the bounding box
-    BOX2I bbox = GetBoundingBox();
-    
-    // Add accuracy margin
-    bbox.Inflate( aAccuracy );
-    
-    return bbox.Contains( aPosition );
+    return BITMAPS::SCHEMATIC;
 }
 
 bool CHEM_SCREEN::HitTest( const BOX2I& aRect, bool aContains, int aAccuracy ) const
 {
-    BOX2I bbox = GetBoundingBox();
-    
-    // Add accuracy margin
-    bbox.Inflate( aAccuracy );
-    
-    if( aContains )
-        return aRect.Contains( bbox );
-    else
-        return bbox.Intersects( aRect );
+    for( const CHEM_ITEM* item : m_rtree )
+    {
+        if( item->HitTest( aRect, aContains, aAccuracy ) )
+            return true;
+    }
+    return false;
 }
 
 void CHEM_SCREEN::Plot( PLOTTER* aPlotter ) const
 {
-    // Set up the plotter
-    aPlotter->SetColor( m_outlineColor );
+    // Plot the screen outline
     aPlotter->SetCurrentLineWidth( m_lineWidth );
+    aPlotter->SetColor( m_outlineColor );
     
-    BOX2I bbox = GetBoundingBox();
+    // Plot the rectangle
+    VECTOR2I corners[4];
+    corners[0] = m_position;
+    corners[1] = m_position + VECTOR2I( m_size.x, 0 );
+    corners[2] = m_position + m_size;
+    corners[3] = m_position + VECTOR2I( 0, m_size.y );
     
-    // Draw the outline first
-    if( m_rotationAngle == 0 )
+    // Rotate corners if needed
+    if( m_rotationAngle != 0 )
     {
-        // Simple rectangle for non-rotated screen
-        aPlotter->Rect( bbox.GetPosition(), bbox.GetPosition() + bbox.GetSize(), FILL_TYPE::NO_FILL );
-        
-        // Draw the mesh pattern based on density
-        int spacing = bbox.GetWidth() / (m_meshDensity + 1);
-        
-        // Draw vertical lines for mesh
-        for( int i = 1; i <= m_meshDensity; i++ )
-        {
-            int x = bbox.GetLeft() + i * spacing;
-            aPlotter->MoveTo( VECTOR2I( x, bbox.GetTop() ) );
-            aPlotter->LineTo( VECTOR2I( x, bbox.GetBottom() ) );
-        }
-    }
-    else
-    {
-        // For rotated screens, we need to calculate the actual corners
-        VECTOR2I halfSize = m_size / 2;
-        
-        // Calculate the four corners before rotation
-        VECTOR2I corners[4] = {
-            VECTOR2I( -halfSize.x, -halfSize.y ),
-            VECTOR2I( halfSize.x, -halfSize.y ),
-            VECTOR2I( halfSize.x, halfSize.y ),
-            VECTOR2I( -halfSize.x, halfSize.y )
-        };
-        
-        // Rotate each corner and draw the outline
-        double angleRad = DECIDEG2RAD( m_rotationAngle );
-        double sinA = sin( angleRad );
-        double cosA = cos( angleRad );
-        
-        VECTOR2I rotatedCorners[4];
-        
+        VECTOR2I center = m_position + (m_size / 2);
         for( int i = 0; i < 4; i++ )
         {
-            rotatedCorners[i] = VECTOR2I(
-                KiROUND( corners[i].x * cosA - corners[i].y * sinA ),
-                KiROUND( corners[i].x * sinA + corners[i].y * cosA )
-            );
-            
-            rotatedCorners[i] += m_position;
+            RotatePoint( corners[i], center, m_rotationAngle );
         }
-        
-        // Draw the outline
-        aPlotter->MoveTo( rotatedCorners[0] );
-        for( int i = 1; i < 4; i++ )
-            aPlotter->LineTo( rotatedCorners[i] );
-        aPlotter->LineTo( rotatedCorners[0] );  // Close the shape
-        
-        // For rotated screens, draw simplified mesh pattern
-        // We'll draw diagonal lines to represent the mesh
-        int numLines = m_meshDensity * 2;
-        double diagonalLength = std::sqrt( m_size.x * m_size.x + m_size.y * m_size.y );
-        double spacing = diagonalLength / (numLines + 1);
-        
-        // Starting position for the mesh lines
-        VECTOR2I centerOffset = VECTOR2I(
-            KiROUND( -diagonalLength/2 * cosA - 0 * sinA ),
-            KiROUND( -diagonalLength/2 * sinA + 0 * cosA )
-        );
-        
-        VECTOR2I lineOffset = VECTOR2I(
-            KiROUND( spacing * cosA ),
-            KiROUND( spacing * sinA )
-        );
-        
-        // Draw diagonal mesh lines
-        for( int i = 1; i <= numLines; i++ )
-        {
-            VECTOR2I start = m_position + centerOffset + lineOffset * i;
-            VECTOR2I perpDir = VECTOR2I( -lineOffset.y, lineOffset.x );
-            
-            aPlotter->MoveTo( start - perpDir );
-            aPlotter->LineTo( start + perpDir );
-        }
+    }
+    
+    // Draw the rectangle
+    aPlotter->MoveTo( corners[0] );
+    for( int i = 1; i < 4; i++ )
+    {
+        aPlotter->LineTo( corners[i] );
+    }
+    aPlotter->LineTo( corners[0] );
+    
+    // Fill if needed
+    if( m_fillColor != COLOR4D::UNSPECIFIED )
+    {
+        aPlotter->SetColor( m_fillColor );
+        aPlotter->FillRect( m_position, m_size, m_rotationAngle );
     }
 }
 
 bool CHEM_SCREEN::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const
 {
-    // Search in screen name and description
-    if( SCH_FIND_COLLECTOR_DATA* collector_data = static_cast<SCH_FIND_COLLECTOR_DATA*>( aAuxData ) )
+    // Search in name and description
+    if( Matches( m_name, aSearchData ) )
+        return true;
+        
+    if( Matches( m_description, aSearchData ) )
+        return true;
+        
+    return false;
+}
+
+const VECTOR2I CHEM_SCREEN::GetFocusPosition() const
+{
+    // For a screen, the focus position is the center
+    return m_position + (m_size / 2);
+}
+
+VECTOR2I CHEM_SCREEN::GetSortPosition() const
+{
+    // Use the top-left corner for sorting
+    return m_position;
+}
+
+wxString CHEM_SCREEN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+{
+    wxString desc = wxString::Format( _("Chemical Process Screen: %s"), m_name );
+    
+    if( aFull )
     {
-        if( aSearchData.IsTextUnescaped() )
-        {
-            if( collector_data->matchName && EDA_PATTERN_MATCH_SEARCH::Find( m_name, aSearchData.GetText() ) )
-                return true;
-
-            if( collector_data->matchDescription && EDA_PATTERN_MATCH_SEARCH::Find( m_description, aSearchData.GetText() ) )
-                return true;
-        }
-        else
-        {
-            if( collector_data->matchName && EDA_PATTERN_MATCH_SEARCH::Find( m_name, aSearchData.GetText() ) )
-                return true;
-
-            if( collector_data->matchDescription && EDA_PATTERN_MATCH_SEARCH::Find( m_description, aSearchData.GetText() ) )
-                return true;
-        }
+        desc += wxString::Format( wxT("\nPosition: %s"), 
+            aUnitsProvider->MessageTextFromValue( m_position.x ) + wxT(", ") +
+            aUnitsProvider->MessageTextFromValue( m_position.y ) );
+        
+        desc += wxString::Format( wxT("\nSize: %s"), 
+            aUnitsProvider->MessageTextFromValue( m_size.x ) + wxT(" x ") +
+            aUnitsProvider->MessageTextFromValue( m_size.y ) );
+        
+        if( !m_description.IsEmpty() )
+            desc += wxString::Format( wxT("\nDescription: %s"), m_description );
     }
     
-    return false;
+    return desc;
+}
+
+bool CHEM_SCREEN::IsReplaceable() const
+{
+    // Screens have replaceable text in name and description
+    return true;
+}
+
+bool CHEM_SCREEN::Replace( const EDA_SEARCH_DATA& aSearchData, void* aAuxData )
+{
+    bool modified = false;
+    
+    // Replace in name
+    if( Replace( aSearchData, m_name ) )
+        modified = true;
+        
+    // Replace in description
+    if( Replace( aSearchData, m_description ) )
+        modified = true;
+        
+    if( modified )
+        SetModified();
+        
+    return modified;
+}
+
+CHEM_SCHEMATIC* CHEM_SCREEN::Schematic() const
+{
+    EDA_ITEM* parent = GetParent();
+
+    while( parent )
+    {
+        if( parent->Type() == SCHEMATIC_T )
+            return static_cast<CHEM_SCHEMATIC*>( parent );
+        else
+            parent = parent->GetParent();
+    }
+
+    return nullptr;
+}
+
+void CHEM_SCREEN::Plot( PLOTTER* aPlotter, bool aBackground,
+                       const CHEM_PLOT_OPTS& aPlotOpts,
+                       int aUnit, int aBodyStyle,
+                       const VECTOR2I& aOffset, bool aDimmed )
+{
+    for( CHEM_ITEM* item : m_rtree )
+    {
+        item->Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
+    }
 } 

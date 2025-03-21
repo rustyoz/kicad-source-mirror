@@ -26,7 +26,7 @@
 
 #include <eda_text.h>
 #include "chem_item.h"
-#include <color4d.h>
+#include <gal/color4d.h>
 
 class PLOTTER;
 
@@ -77,7 +77,7 @@ public:
     /**
      * Implementation of the ViewGetLayers method from CHEM_ITEM
      */
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     /**
      * Swap data with another item

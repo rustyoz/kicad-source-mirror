@@ -21,9 +21,72 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <tool/actions.h>
+#include "tools/chem_actions.h"
+
+#include <bitmaps.h>
 #include <tool/tool_action.h>
-#include "chem_editor_control.h"
+
+// Actions, being statically-defined, require specialized I18N handling.  We continue to
+// use the _() macro so that string harvesting by the I18N framework doesn't have to be
+// specialized, but we don't translate on initialization and instead do it in the getters.
+
+#undef _
+#define _(s) s
+
+// Selection Tool
+TOOL_ACTION CHEM_ACTIONS::selectionActivate( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveSelection" )
+        .Scope( AS_GLOBAL )
+        .Flags( AF_ACTIVATE ) );
+
+TOOL_ACTION CHEM_ACTIONS::clearSelection( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveSelection.clearSelection" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Clear Selection" ) )
+        .Tooltip( _( "Deselect all items" ) )
+        .Icon( BITMAPS::cursor ) );
+
+TOOL_ACTION CHEM_ACTIONS::addItemToSel( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveSelection.addItemToSel" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION CHEM_ACTIONS::removeItemFromSel( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveSelection.removeItemFromSel" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION CHEM_ACTIONS::addItemsToSel( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveSelection.addItemsToSel" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION CHEM_ACTIONS::removeItemsFromSel( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveSelection.removeItemsFromSel" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION CHEM_ACTIONS::selectionMenu( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveSelection.selectionMenu" )
+        .Scope( AS_GLOBAL ) );
+
+// Basic editing
+TOOL_ACTION CHEM_ACTIONS::moveSelected( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveEdit.moveSelected" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Move Selected" ) )
+        .Tooltip( _( "Move selected items" ) )
+        .Icon( BITMAPS::move ) );
+
+TOOL_ACTION CHEM_ACTIONS::deleteSelected( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveEdit.deleteSelected" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Delete Selected" ) )
+        .Tooltip( _( "Delete selected items" ) )
+        .Icon( BITMAPS::delete ) );
+
+TOOL_ACTION CHEM_ACTIONS::duplicateSelected( TOOL_ACTION_ARGS()
+        .Name( "chemschema.InteractiveEdit.duplicateSelected" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Duplicate Selected" ) )
+        .Tooltip( _( "Duplicate selected items" ) )
+        .Icon( BITMAPS::duplicate ) );
 
 // Drawing tool actions
 TOOL_ACTION CHEMSCHEMA_ACTIONS::newSymbol(

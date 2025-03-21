@@ -45,6 +45,25 @@
 
 using namespace std;
 
+// Define the static members of CHEM_EDITOR_ACTIONS
+TOOL_ACTION CHEM_EDITOR_ACTIONS::newSymbol( "chemschema.InteractiveDrawing.newSymbol",
+    AS_GLOBAL, 0, "", "", "", "", "Add a new symbol" );
+
+TOOL_ACTION CHEM_EDITOR_ACTIONS::newLine( "chemschema.InteractiveDrawing.newLine",
+    AS_GLOBAL, 0, "", "", "", "", "Add a new line" );
+
+TOOL_ACTION CHEM_EDITOR_ACTIONS::newJunction( "chemschema.InteractiveDrawing.newJunction",
+    AS_GLOBAL, 0, "", "", "", "", "Add a new junction" );
+
+TOOL_ACTION CHEM_EDITOR_ACTIONS::newLabel( "chemschema.InteractiveDrawing.newLabel",
+    AS_GLOBAL, 0, "", "", "", "", "Add a new label" );
+
+TOOL_ACTION CHEM_EDITOR_ACTIONS::newScreen( "chemschema.InteractiveDrawing.newScreen",
+    AS_GLOBAL, 0, "", "", "", "", "Add a new screen" );
+
+TOOL_ACTION CHEM_EDITOR_ACTIONS::newSheet( "chemschema.InteractiveDrawing.newSheet",
+    AS_GLOBAL, 0, "", "", "", "", "Add a new sheet" );
+
 CHEM_EDITOR_CONTROL::CHEM_EDITOR_CONTROL() :
     TOOL_INTERACTIVE( "chemschema.EditorControl" ),
     m_frame( nullptr ),
@@ -66,6 +85,11 @@ void CHEM_EDITOR_CONTROL::Reset( RESET_REASON aReason )
     {
         // Nothing to do here
     }
+}
+
+const std::string& CHEM_EDITOR_CONTROL::GetName() const
+{
+    return "chemschema.EditorControl";
 }
 
 
@@ -431,12 +455,12 @@ void CHEM_EDITOR_CONTROL::SetupContextMenu()
 void CHEM_EDITOR_CONTROL::setTransitions()
 {
     Go( &CHEM_EDITOR_CONTROL::Main,        EVENTS::SelectedEvent );
-    Go( &CHEM_EDITOR_CONTROL::NewSymbol,   CHEMSCHEMA_ACTIONS::newSymbol.MakeEvent() );
-    Go( &CHEM_EDITOR_CONTROL::NewLine,     CHEMSCHEMA_ACTIONS::newLine.MakeEvent() );
-    Go( &CHEM_EDITOR_CONTROL::NewJunction, CHEMSCHEMA_ACTIONS::newJunction.MakeEvent() );
-    Go( &CHEM_EDITOR_CONTROL::NewLabel,    CHEMSCHEMA_ACTIONS::newLabel.MakeEvent() );
-    Go( &CHEM_EDITOR_CONTROL::NewScreen,   CHEMSCHEMA_ACTIONS::newScreen.MakeEvent() );
-    Go( &CHEM_EDITOR_CONTROL::NewSheet,    CHEMSCHEMA_ACTIONS::newSheet.MakeEvent() );
+    Go( &CHEM_EDITOR_CONTROL::NewSymbol,   CHEM_EDITOR_ACTIONS::newSymbol.MakeEvent() );
+    Go( &CHEM_EDITOR_CONTROL::NewLine,     CHEM_EDITOR_ACTIONS::newLine.MakeEvent() );
+    Go( &CHEM_EDITOR_CONTROL::NewJunction, CHEM_EDITOR_ACTIONS::newJunction.MakeEvent() );
+    Go( &CHEM_EDITOR_CONTROL::NewLabel,    CHEM_EDITOR_ACTIONS::newLabel.MakeEvent() );
+    Go( &CHEM_EDITOR_CONTROL::NewScreen,   CHEM_EDITOR_ACTIONS::newScreen.MakeEvent() );
+    Go( &CHEM_EDITOR_CONTROL::NewSheet,    CHEM_EDITOR_ACTIONS::newSheet.MakeEvent() );
     Go( &CHEM_EDITOR_CONTROL::Delete,      ACTIONS::doDelete.MakeEvent() );
     Go( &CHEM_EDITOR_CONTROL::Properties,  ACTIONS::properties.MakeEvent() );
     Go( &CHEM_EDITOR_CONTROL::Rotate,      ACTIONS::rotate.MakeEvent() );

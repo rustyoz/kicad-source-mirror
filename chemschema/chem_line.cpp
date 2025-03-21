@@ -30,7 +30,7 @@
 #include <geometry/seg.h>
 
 CHEM_LINE::CHEM_LINE() :
-    CHEM_ITEM( nullptr, CHEM_ITEM::CHEM_LINE_T )
+    CHEM_ITEM( nullptr, CHEM_LINE_T )
 {
     m_width = 10;  // Default width in mils
     m_lineStyle = SOLID;
@@ -59,10 +59,11 @@ EDA_ITEM* CHEM_LINE::Clone() const
 }
 
 
-void CHEM_LINE::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> CHEM_LINE::ViewGetLayers() const
 {
-    aLayers[0] = CHEM_LAYER_CONNECTIONS;
-    aCount = 1;
+    std::vector<int> layers;
+    layers.push_back( CHEM_LAYER_CONNECTIONS );
+    return layers;
 }
 
 
@@ -163,7 +164,7 @@ std::vector<BOX2I> CHEM_LINE::GetBoundingBoxes() const
 }
 
 
-wxString CHEM_LINE::GetSelectMenuText( EDA_UNITS aUnits ) const
+wxString CHEM_LINE::GetSelectMenuText( EDA_UNITS aUnits ) const 
 {
     return wxString::Format( _( "Line with %zu segments" ), m_points.size() > 0 ? m_points.size() - 1 : 0 );
 }
@@ -198,15 +199,12 @@ bool CHEM_LINE::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 
 bool CHEM_LINE::HitTest( const BOX2I& aRect, bool aContains, int aAccuracy ) const
 {
-    if( m_points.size() < 2 )
-        return false;
-        
     if( aContains )
     {
-        // The selection rectangle must fully contain all line points
-        for( const wxPoint& pt : m_points )
+        // All points must be within the selection rectangle
+        for( const wxPoint& point : m_points )
         {
-            if( !aRect.Contains( VECTOR2I( pt.x, pt.y ) ) )
+            if( !aRect.Contains( VECTOR2I( point.x, point.y ) ) )
                 return false;
         }
         return true;
@@ -219,7 +217,23 @@ bool CHEM_LINE::HitTest( const BOX2I& aRect, bool aContains, int aAccuracy ) con
             SEG segment( VECTOR2I( m_points[i].x, m_points[i].y ),
                         VECTOR2I( m_points[i+1].x, m_points[i+1].y ) );
                         
-            if( segment.Intersects( aRect ) )
+            if( segment.A.x >= aRect.GetLeft() && segment.A.x <= aRect.GetRight() &&
+                segment.A.y >= aRect.GetTop() && segment.A.y <= aRect.GetBottom() )
+                return true;
+                
+            if( segment.B.x >= aRect.GetLeft() && segment.B.x <= aRect.GetRight() &&
+                segment.B.y >= aRect.GetTop() && segment.B.y <= aRect.GetBottom() )
+                return true;
+                
+            // Test line intersection with all 4 sides of the box
+            if( segment.Intersects( SEG( VECTOR2I( aRect.GetLeft(), aRect.GetTop() ), 
+                                         VECTOR2I( aRect.GetRight(), aRect.GetTop() ) ) ) ||
+                segment.Intersects( SEG( VECTOR2I( aRect.GetRight(), aRect.GetTop() ), 
+                                         VECTOR2I( aRect.GetRight(), aRect.GetBottom() ) ) ) ||
+                segment.Intersects( SEG( VECTOR2I( aRect.GetRight(), aRect.GetBottom() ), 
+                                         VECTOR2I( aRect.GetLeft(), aRect.GetBottom() ) ) ) ||
+                segment.Intersects( SEG( VECTOR2I( aRect.GetLeft(), aRect.GetBottom() ), 
+                                         VECTOR2I( aRect.GetLeft(), aRect.GetTop() ) ) ) )
                 return true;
         }
         return false;

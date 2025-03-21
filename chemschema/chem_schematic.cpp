@@ -26,16 +26,26 @@
 #include "chem_schematic.h"
 #include "chem_edit_frame.h"
 #include <algorithm>
+#include "chem_sheet.h"
+#include "chem_screen.h"
 
-CHEM_SCHEMATIC::CHEM_SCHEMATIC( CHEM_EDIT_FRAME* aFrame ) : EDA_ITEM( nullptr )
+CHEM_SCHEMATIC::CHEM_SCHEMATIC( PROJECT* aPrj ) :
+    SCHEMATIC( aPrj ),
+    m_rootSheet( nullptr ),
+    m_currentSheet( nullptr ),
+    m_modified( false )
 {
-    m_frame = aFrame;
+    m_currentSheet = new CHEM_SHEET_PATH();
 }
 
 
-CHEM_SCHEMATIC::CHEM_SCHEMATIC( const CHEM_SCHEMATIC& other ) : EDA_ITEM( nullptr )
+CHEM_SCHEMATIC::CHEM_SCHEMATIC( const CHEM_SCHEMATIC& other ) :
+    SCHEMATIC( other ),
+    m_rootSheet( nullptr ),
+    m_currentSheet( nullptr ),
+    m_modified( false )
 {
-    m_frame = other.m_frame;
+    m_currentSheet = new CHEM_SHEET_PATH( *other.m_currentSheet );
     
     // Deep copy items
     for( EDA_ITEM* item : other.m_items )
@@ -49,6 +59,7 @@ CHEM_SCHEMATIC::CHEM_SCHEMATIC( const CHEM_SCHEMATIC& other ) : EDA_ITEM( nullpt
 CHEM_SCHEMATIC::~CHEM_SCHEMATIC()
 {
     Clear();
+    delete m_currentSheet;
 }
 
 
@@ -86,28 +97,26 @@ void CHEM_SCHEMATIC::Clear()
 }
 
 
-void CHEM_SCHEMATIC::AddItem( EDA_ITEM* aItem )
+void CHEM_SCHEMATIC::Add( CHEM_ITEM* aItem )
 {
     if( aItem )
     {
         m_items.push_back( aItem );
-        UpdateView();
+        m_modified = true;
     }
 }
 
 
-void CHEM_SCHEMATIC::RemoveItem( EDA_ITEM* aItem )
+void CHEM_SCHEMATIC::Remove( CHEM_ITEM* aItem )
 {
-    if( !aItem )
-        return;
-
-    auto it = std::find( m_items.begin(), m_items.end(), aItem );
-    
-    if( it != m_items.end() )
+    if( aItem )
     {
-        m_items.erase( it );
-        delete aItem;
-        UpdateView();
+        auto it = std::find( m_items.begin(), m_items.end(), aItem );
+        if( it != m_items.end() )
+        {
+            m_items.erase( it );
+            m_modified = true;
+        }
     }
 }
 
@@ -115,13 +124,6 @@ void CHEM_SCHEMATIC::RemoveItem( EDA_ITEM* aItem )
 void CHEM_SCHEMATIC::UpdateView()
 {
     // Will need to implement view update when rendering system is in place
-}
-
-
-CHEM_SCHEMATIC::CHEM_SCHEMATIC() :
-    m_modified( false )
-{
-    m_title = wxT( "New Chemical Process Flow Diagram" );
 }
 
 
@@ -252,4 +254,78 @@ void CHEM_SCHEMATIC::SetModified( bool aModified )
 bool CHEM_SCHEMATIC::IsModified() const
 {
     return m_modified;
+}
+
+void CHEM_SCHEMATIC::Reset()
+{
+    if( m_rootSheet )
+    {
+        delete m_rootSheet;
+        m_rootSheet = nullptr;
+    }
+
+    m_currentSheet->m_sheets.clear();
+}
+
+void CHEM_SCHEMATIC::SetRoot( CHEM_SHEET* aRootSheet )
+{
+    wxCHECK_RET( aRootSheet, wxT( "Call to SetRoot with null CHEM_SHEET!" ) );
+
+    m_rootSheet = aRootSheet;
+
+    m_currentSheet->m_sheets.clear();
+    m_currentSheet->m_sheets.push_back( m_rootSheet );
+
+    RefreshHierarchy();
+}
+
+CHEM_SCREEN* CHEM_SCHEMATIC::RootScreen() const
+{
+    return IsValid() ? m_rootSheet->Screen() : nullptr;
+}
+
+wxString CHEM_SCHEMATIC::GetFileName() const
+{
+    CHEM_SCREEN* screen = RootScreen();
+    return screen ? screen->GetName() : wxEmptyString;
+}
+
+CHEM_SHEET_LIST CHEM_SCHEMATIC::Hierarchy() const
+{
+    CHEM_SHEET_LIST hierarchy( m_rootSheet );
+    hierarchy.SortByPageNumbers();
+    return hierarchy;
+}
+
+void CHEM_SCHEMATIC::RefreshHierarchy()
+{
+    // Rebuild the hierarchy from the root sheet
+    if( m_rootSheet )
+    {
+        CHEM_SHEET_LIST hierarchy( m_rootSheet );
+        hierarchy.BuildSheetList( m_rootSheet );
+    }
+}
+
+bool CHEM_SCHEMATIC::IsComplexHierarchy() const
+{
+    if( !m_rootSheet )
+        return false;
+
+    // Check if any screen is referenced by more than one sheet
+    std::map<CHEM_SCREEN*, int> screenRefCount;
+
+    CHEM_SHEET_LIST hierarchy( m_rootSheet );
+    for( const CHEM_SHEET_PATH& path : hierarchy )
+    {
+        CHEM_SCREEN* screen = path.LastScreen();
+        if( screen )
+        {
+            screenRefCount[screen]++;
+            if( screenRefCount[screen] > 1 )
+                return true;
+        }
+    }
+
+    return false;
 } 

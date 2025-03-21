@@ -82,9 +82,10 @@ public:
     virtual EDA_ITEM* Clone() const override;
 
     /**
-     * Implementation of the ViewGetLayers method from CHEM_ITEM
+     * Get the list of layers this item is drawn on
+     * @return Vector of layer indices
      */
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     /**
      * Swap data with another item
@@ -102,7 +103,7 @@ public:
      * Get the symbol position
      * @return The position of the symbol
      */
-    wxPoint GetPosition() const;
+    virtual VECTOR2I GetPosition() const override;
 
     /**
      * Set the symbol type

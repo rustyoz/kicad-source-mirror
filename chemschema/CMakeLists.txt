@@ -7,6 +7,7 @@ endif()
 include_directories( BEFORE ${INC_BEFORE} )
 include_directories(
     ${CMAKE_SOURCE_DIR}/kicad
+    ${CMAKE_SOURCE_DIR}/eeschema
     ${CMAKE_SOURCE_DIR}/common
     ${CMAKE_SOURCE_DIR}/common/dialogs
     ${CMAKE_SOURCE_DIR}/include
@@ -24,6 +25,8 @@ set( CHEMSCHEMA_SRCS
     chem_schematic.cpp
     chem_view.cpp
     chem_edit_frame.cpp
+    tools/chem_actions.cpp
+    tools/chem_actions.h
     )
 
 set( CHEMSCHEMA_COMMON_SRCS
@@ -37,6 +40,7 @@ set( CHEMSCHEMA_COMMON_SRCS
     chem_junction.cpp
     chem_label.cpp
     chem_screen.cpp
+    chem_sheet_path.cpp
     )
 
 set( CHEMSCHEMA_DIALOGS
@@ -58,7 +62,7 @@ add_executable( chemschema WIN32 MACOSX_BUNDLE
     )
 
 set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp PROPERTIES
-    COMPILE_DEFINITIONS "TOP_FRAME=FRAME_CHEM;PGM_DATA_FILE_EXT=\"kicad_chem\";BUILD_KIWAY_DLL"
+    COMPILE_DEFINITIONS "TOP_FRAME=FRAME_CHEM_SCHEMA;PGM_DATA_FILE_EXT=\"kicad_chem\";BUILD_KIWAY_DLL"
     )
 
 target_link_libraries( chemschema

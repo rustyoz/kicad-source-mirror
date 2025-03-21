@@ -28,6 +28,7 @@
 #include <wx/gdicmn.h>
 #include "chem_item.h"
 #include "chem_includes.h"
+#include <gal/color4d.h>
 
 class PLOTTER;
 
@@ -72,9 +73,10 @@ public:
     virtual EDA_ITEM* Clone() const override;
 
     /**
-     * Implementation of the ViewGetLayers method from CHEM_ITEM
+     * Get the list of layers this item is drawn on
+     * @return Vector of layer indices
      */
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     /**
      * Swap data with another item

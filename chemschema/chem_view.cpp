@@ -26,8 +26,8 @@
 #include <view/view_item.h>
 #include <view/view_group.h>
 
-CHEM_VIEW::CHEM_VIEW( bool aIsPrinting ) :
-    KIGFX::VIEW( aIsPrinting ),
+CHEM_VIEW::CHEM_VIEW( bool aIsDynamic ) :
+    KIGFX::VIEW( aIsDynamic ),
     m_chemSchematic( nullptr )
 {
     // Initialize view settings
@@ -71,18 +71,22 @@ CHEM_SCHEMATIC* CHEM_VIEW::GetChemSchematic() const
 
 void CHEM_VIEW::UpdateAllItems()
 {
-    // Force redraw of all items
-    for( int i = 0; i < GetItemCount(); ++i )
+    // This is a placeholder implementation
+    // In the actual implementation, we would update all view items
+    
+    // We're not using GetItemCount() and GetItem() as they don't exist in the current VIEW API
+    // Instead, we'll use a more direct approach to update the view
+    
+    // Mark the view as dirty to force a redraw
+    MarkDirty();
+    
+    // Request a redraw of all layers
+    for( int i = 0; i < CHEM_LAYER_ID_COUNT; i++ )
     {
-        KIGFX::VIEW_ITEM* item = GetItem( i );
-        
-        if( item )
-        {
-            item->ViewUpdate( KIGFX::VIEW_ITEM::GEOMETRY );
-            item->ViewUpdate( KIGFX::VIEW_ITEM::APPEARANCE );
-        }
+        MarkTargetDirty( i );
     }
     
+    // Call the base class's update method
     UpdateItems();
 }
 

@@ -233,6 +233,21 @@ enum KICAD_T
     SEARCH_STACK_T,
     S3D_CACHE_T,
 
+    // Items for chemical schema editor
+    CHEM_ITEM_T,             ///< class CHEM_ITEM base type for chemical items
+    CHEM_SHAPE_T,            ///< class CHEM_SHAPE, a shape in the chemical editor
+    CHEM_TEXT_T,             ///< class CHEM_TEXT, text in the chemical editor
+    CHEM_TEXTBOX_T,          ///< class CHEM_TEXTBOX, wrapped text in the chemical editor
+    CHEM_LINE_T,             ///< class CHEM_LINE, a line in the chemical editor
+    CHEM_SYMBOL_T,           ///< class CHEM_SYMBOL, a symbol in the chemical editor
+    CHEM_SHEET_T,            ///< class CHEM_SHEET, a sheet in the chemical editor
+    CHEM_JUNCTION_T,         ///< class CHEM_JUNCTION, a junction in the chemical editor
+    CHEM_LABEL_T,            ///< class CHEM_LABEL, a label in the chemical editor
+    CHEM_SCREEN_T,           ///< class CHEM_SCREEN, a screen in the chemical editor
+    CHEM_ITEM_LIST_T,        ///< class CHEM_ITEM_LIST, a list of chemical items
+    
+
+    
     // End value
     MAX_STRUCT_TYPE_ID
 };

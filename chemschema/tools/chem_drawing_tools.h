@@ -24,8 +24,20 @@
 #ifndef CHEM_DRAWING_TOOLS_H
 #define CHEM_DRAWING_TOOLS_H
 
+#include <confirm.h>
+#include <string_utils.h>
+#include <kiface_base.h>
+#include <eda_units.h>
 #include <tool/tool_interactive.h>
 #include <tool/tool_menu.h>
+
+// Drawing states
+enum DRAWING_STATE
+{
+    WAITING_FOR_START,
+    DRAWING,
+    WAITING_FOR_END
+};
 
 class CHEM_EDIT_FRAME;
 class CHEM_ITEM;
@@ -54,9 +66,10 @@ public:
     ~CHEM_DRAWING_TOOLS();
 
     /**
-     * Tool name
+     * Get the name of the tool
+     * @return Tool name
      */
-    const char* GetName() const override { return "chemschema.InteractiveDrawing"; }
+    const char* GetName() const { return "chemschema.InteractiveDrawing"; }
 
     /**
      * Reset the tool state
@@ -99,11 +112,7 @@ public:
      */
     int PlaceLabel( const TOOL_EVENT& aEvent );
 
-    /**
-     * Place a screen/filter interactively
-     * @param aEvent - Tool event
-     */
-    int PlaceScreen( const TOOL_EVENT& aEvent );
+
 
     /**
      * Place a sheet interactively
@@ -146,11 +155,12 @@ private:
     bool IsPositionValid( CHEM_ITEM* aItem, const VECTOR2I& aPosition );
 
     // Private members
-    CHEM_EDIT_FRAME*  m_frame;             ///< Editor frame
-    int               m_drawingMode;       ///< Current drawing mode
-    CHEM_ITEM*        m_currentItem;       ///< Item currently being drawn
-    VECTOR2I          m_startPoint;        ///< Start point for line drawing
-    bool              m_isAddingMultiple;  ///< Flag to add multiple items
+    CHEM_EDIT_FRAME* m_frame;   ///< Editor frame
+    int m_drawingMode;          ///< Current drawing mode
+    DRAWING_STATE m_drawingState; ///< Current drawing state
+    CHEM_ITEM* m_currentItem;   ///< Item currently being drawn
+    VECTOR2I m_startPoint;      ///< Start point for line drawing
+    bool m_isAddingMultiple;    ///< Flag to add multiple items
 };
 
 // Drawing modes
@@ -164,4 +174,4 @@ enum CHEM_DRAWING_MODE
     CHEM_DRAWING_SHEET
 };
 
-#endif // CHEM_DRAWING_TOOLS_H 
+#endif // CHEM_DRAWING_TOOLS_H

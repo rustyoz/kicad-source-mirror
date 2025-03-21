@@ -27,15 +27,20 @@
 #include <view/view.h>
 #include <view/view_controls.h>
 #include <gal/graphics_abstraction_layer.h>
+#include <gal/color4d.h>
+#include <gal/definitions.h>
 #include <confirm.h>
 #include <math/util.h>
 #include <geometry/shape_line_chain.h>
 #include <geometry/geometry_utils.h>
+#include <base_units.h>
+#include <cmath>
 
 #include "chem_measurement_tool.h"
 #include "../chem_edit_frame.h"
 #include "../chem_schematic.h"
 #include "../chem_includes.h"
+#include "../chem_actions.h"
 
 using namespace std;
 
@@ -62,13 +67,17 @@ void CHEM_MEASUREMENT_TOOL::Reset( RESET_REASON aReason )
 
 int CHEM_MEASUREMENT_TOOL::Main( const TOOL_EVENT& aEvent )
 {
+    if( aEvent.IsAction( &CHEM_EDITOR_ACTIONS::measureDistance ) )
+        return MeasureDistance( aEvent );
+    else if( aEvent.IsAction( &CHEM_EDITOR_ACTIONS::measureAngle ) )
+        return MeasureAngle( aEvent );
+    
     // Initialize the tool
     m_frame = getEditFrame<CHEM_EDIT_FRAME>();
     CHEM_SCHEMATIC* schematic = getModel<CHEM_SCHEMATIC>();
     
     // Set up the drawing environment
     getViewControls()->ShowCursor( true );
-    getViewControls()->SetSnapping( true );
     getViewControls()->SetAutoPan( true );
     
     // Clear any existing measurement
@@ -76,14 +85,6 @@ int CHEM_MEASUREMENT_TOOL::Main( const TOOL_EVENT& aEvent )
     m_measureInProgress = true;
     
     // Determine the measurement mode
-    if( aEvent.IsAction( &CHEMSCHEMA_ACTIONS::measureDistance ) )
-        m_measureMode = MEASUREMENT_DISTANCE;
-    else if( aEvent.IsAction( &CHEMSCHEMA_ACTIONS::measureAngle ) )
-        m_measureMode = MEASUREMENT_ANGLE;
-    else
-        m_measureMode = MEASUREMENT_DISTANCE;  // Default
-    
-    // Inform the user what to do
     if( m_measureMode == MEASUREMENT_DISTANCE )
         m_frame->SetStatusText( _( "Click on first point for distance measurement." ) );
     else
@@ -227,14 +228,12 @@ void CHEM_MEASUREMENT_TOOL::DrawMeasurement()
     double lineWidth = 2.0;
     
     // Store the current drawing mode
-    KIGFX::GAL::STROKE_STYLE savedLineStyle = gal->GetStrokeStyle();
     KIGFX::COLOR4D savedColor = gal->GetStrokeColor();
     double savedLineWidth = gal->GetLineWidth();
     
     // Set new drawing style
     gal->SetStrokeColor( measurementColor );
     gal->SetLineWidth( lineWidth );
-    gal->SetStrokeStyle( KIGFX::GAL::STROKE_STYLE::SOLID );
     
     // Draw based on the measurement mode
     if( m_measureMode == MEASUREMENT_DISTANCE )
@@ -303,11 +302,10 @@ void CHEM_MEASUREMENT_TOOL::DrawMeasurement()
     }
     
     // Restore previous style
-    gal->SetStrokeStyle( savedLineStyle );
     gal->SetStrokeColor( savedColor );
     gal->SetLineWidth( savedLineWidth );
     
-    view->RedrawRect( BOX2I( VECTOR2I( 0, 0 ), VECTOR2I( INT_MAX, INT_MAX ) ) );
+    view->MarkDirty();
 }
 
 
@@ -317,7 +315,9 @@ void CHEM_MEASUREMENT_TOOL::ClearMeasurement()
     
     // Make the drawing areas redraw without the measurement
     if( getView() )
-        getView()->RedrawRect( BOX2I( VECTOR2I( 0, 0 ), VECTOR2I( INT_MAX, INT_MAX ) ) );
+    {
+        getView()->MarkDirty();
+    }
 }
 
 
@@ -340,7 +340,7 @@ double CHEM_MEASUREMENT_TOOL::CalculateDistance( const VECTOR2I& aStart, const V
     double dy = aEnd.y - aStart.y;
     
     // Convert to mm (assuming IU are in mils)
-    return sqrt( dx * dx + dy * dy ) / IU_PER_MM;
+    return sqrt( dx * dx + dy * dy ) / PL_IU_PER_MM;
 }
 
 
@@ -393,7 +393,7 @@ void CHEM_MEASUREMENT_TOOL::DisplayMeasurement( const wxString& aMessage )
 
 void CHEM_MEASUREMENT_TOOL::setTransitions()
 {
-    Go( &CHEM_MEASUREMENT_TOOL::Main,             TC_COMMAND, TA_ACTIVATE, "chemschema.MeasurementTool" );
-    Go( &CHEM_MEASUREMENT_TOOL::MeasureDistance,  CHEMSCHEMA_ACTIONS::measureDistance.MakeEvent() );
-    Go( &CHEM_MEASUREMENT_TOOL::MeasureAngle,     CHEMSCHEMA_ACTIONS::measureAngle.MakeEvent() );
+    Go( &CHEM_MEASUREMENT_TOOL::Main,             EVENTS::SelectedEvent );
+    Go( &CHEM_MEASUREMENT_TOOL::MeasureDistance,  CHEM_EDITOR_ACTIONS::measureDistance.MakeEvent() );
+    Go( &CHEM_MEASUREMENT_TOOL::MeasureAngle,     CHEM_EDITOR_ACTIONS::measureAngle.MakeEvent() );
 } 

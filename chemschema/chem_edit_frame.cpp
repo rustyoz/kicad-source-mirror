@@ -27,6 +27,8 @@
 #include <tool/action_manager.h>
 #include <tool/common_tools.h>
 
+#include <eda_units.h>
+
 #include "chem_edit_frame.h"
 #include "chem_schematic.h"
 #include "chem_view.h"
@@ -43,8 +45,8 @@
 CHEM_EDIT_FRAME::CHEM_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
                                  const wxString& aTitle, const wxPoint& aPos,
                                  const wxSize& aSize, long aStyle,
-                                 const wxString& aFrameName ) :
-    KIWAY_PLAYER( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName )
+                                 const wxString& aFrameName, const EDA_IU_SCALE& aIuScale ) :
+    KIWAY_PLAYER( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName, aIuScale )
 {
     m_chemSchematic = nullptr;
     m_chemView = nullptr;
@@ -56,7 +58,7 @@ CHEM_EDIT_FRAME::CHEM_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFra
     m_chemSchematic = new CHEM_SCHEMATIC();
     
     // Create the view
-    m_chemView = new CHEM_VIEW( false );
+    m_chemView = new CHEM_VIEW( true );
     m_chemView->SetChemSchematic( m_chemSchematic );
     
     // Create the display options

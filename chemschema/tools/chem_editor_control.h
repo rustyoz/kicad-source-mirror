@@ -26,21 +26,21 @@
 
 #include <tool/tool_interactive.h>
 #include <tool/tool_menu.h>
-#include "../chem_selection_tool.h"
 
 class CHEM_EDIT_FRAME;
+class CHEM_SELECTION_TOOL;  // Forward declaration
 
 /**
- * CHEMSCHEMA_ACTIONS
+ * CHEM_EDITOR_ACTIONS
  * Gathers all the actions that are shared by tools. The instance of
- * CHEMSCHEMA_ACTIONS is created inside the CHEM_EDIT_FRAME (the main 
+ * CHEM_EDITOR_ACTIONS is created inside the CHEM_EDIT_FRAME (the main 
  * chemical schematic editor frame).
  */
-class CHEMSCHEMA_ACTIONS
+class CHEM_EDITOR_ACTIONS
 {
 public:
     // Constructor
-    CHEMSCHEMA_ACTIONS();
+    CHEM_EDITOR_ACTIONS();
 
     // Drawing tool actions
     static TOOL_ACTION newSymbol;
@@ -71,9 +71,10 @@ public:
     ~CHEM_EDITOR_CONTROL();
 
     /**
-     * Tool name
+     * Get the name of the tool
+     * @return Tool name
      */
-    const char* GetName() const override { return "chemschema.EditorControl"; }
+    const std::string& GetName() const;
 
     /**
      * Main loop for this tool

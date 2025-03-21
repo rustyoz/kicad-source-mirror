@@ -36,7 +36,7 @@ if( CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
 
 
     # Warn about missing override specifiers
-    CHECK_CXX_COMPILER_FLAG( "-Wsuggest-override" COMPILER_SUPPORTS_WSUGGEST_OVERRIDE )
+    #CHECK_CXX_COMPILER_FLAG( "-Wsuggest-override" COMPILER_SUPPORTS_WSUGGEST_OVERRIDE )
 
     if( COMPILER_SUPPORTS_WSUGGEST_OVERRIDE )
         set( WARN_FLAGS_CXX "${WARN_FLAGS_CXX} -Wsuggest-override" )

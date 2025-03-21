@@ -83,7 +83,7 @@ static struct IFACE : public KIFACE_BASE
 {
     // Of course all are overloads, implementations of virtual functions in KIFACE_I
 
-    IFACE() : KIFACE_BASE( "chemschema", KIWAY::FACE_SCH )
+    IFACE(const char* aName, KIWAY::FACE_T aType) : KIFACE_BASE(aName, aType)
     {
         m_settings_manager = nullptr;
     }
@@ -162,13 +162,17 @@ static struct IFACE : public KIFACE_BASE
 private:
     SETTINGS_MANAGER* m_settings_manager;
 
-} kiface;
+} kiface( "chemschema", KIWAY::FACE_CHEM_SCHEMA );
 
-} // namespace
+}
+
+using namespace CHEMSCHEMA;
+
+KIFACE_BASE& Kiface() { return CHEMSCHEMA::kiface; }
 
 // KIFACE_GETTER's actual spelling is a substitution macro found in kiway.h.
 // KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
-KIFACE_API KIFACE* KIFACE_GETTER( int* aKIFACEversion, int aKiwayVersion, PGM_BASE* aProgram )
+KIFACE_API KIFACE* KIFACE_GETTER(  int* aKIFACEversion, int aKiwayVersion, PGM_BASE* aProgram )
 {
-    return &CHEMSCHEMA::kiface;
+    return &kiface;
 } 

@@ -65,7 +65,7 @@ public:
     /**
      * Implementation of the ViewGetLayers method from CHEM_ITEM
      */
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     /**
      * Swap data with another item
@@ -83,7 +83,7 @@ public:
      * Get the sheet position
      * @return The position of the sheet
      */
-    wxPoint GetPosition() const;
+    virtual VECTOR2I GetPosition() const override;
 
     /**
      * Set the sheet size
@@ -161,7 +161,7 @@ public:
      * Get the bounding box for this sheet
      * @return The bounding box
      */
-    BOX2I GetBoundingBox() const;
+    virtual const BOX2I GetBoundingBox() const override;
 
     /**
      * Get the bounding boxes for this sheet

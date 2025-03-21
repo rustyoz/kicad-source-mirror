@@ -25,6 +25,10 @@
 #define CHEM_ITEM_H
 
 #include <eda_item.h>
+#include <schematic.h>
+
+class CHEM_SCREEN;
+class CHEM_SCHEMATIC;
 
 /**
  * Base class for all chemical diagram items.
@@ -32,36 +36,137 @@
 class CHEM_ITEM : public EDA_ITEM
 {
 public:
+    // Item types for chemical schematic elements
+    enum CHEM_ITEM_TYPE
+    {
+        CHEM_LINE_T,
+        CHEM_SYMBOL_T,
+        CHEM_JUNCTION_T,
+        CHEM_LABEL_T,
+        CHEM_SCREEN_T,
+        CHEM_SHEET_T,
+        CHEM_TEXT_T,
+        CHEM_SHAPE_T
+    };
+
     CHEM_ITEM( EDA_ITEM* aParent = nullptr, KICAD_T aItemType = CHEM_ITEM_T );
     virtual ~CHEM_ITEM();
 
+    virtual wxString GetClass() const override;
+
     /**
-     * Enum for chemical item types
+     * Get the list of layers this item is drawn on
+     * @return Vector of layer indices
      */
-    enum CHEM_ITEM_T
-    {
-        CHEM_ITEM_T = 10000, // Base value to avoid conflicts with other types
-        CHEM_SHAPE_T,
-        CHEM_TEXT_T,
-        CHEM_TEXTBOX_T,
-        CHEM_LINE_T,
-        CHEM_SYMBOL_T,
-        CHEM_SHEET_T,
-        CHEM_JUNCTION_T,
-        CHEM_LABEL_T,
-        CHEM_SCREEN_T
-    };
+    virtual std::vector<int> ViewGetLayers() const override;
 
-    virtual wxString GetClass() const override
-    {
-        return wxT( "CHEM_ITEM" );
-    }
+    /**
+     * Get the text to display in a selection menu
+     * @param aUnits - Units for display
+     * @return String for menu
+     */
+    virtual wxString GetSelectMenuText( EDA_UNITS aUnits ) const;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override
-    {
-        // Default implementation - to be overridden by derived classes
-        aCount = 0;
-    }
+    /**
+     * Check if object is movable from the anchor point.
+     * @return true for items which are moved with the anchor point at mouse cursor.
+     * @return false for items moved with no reference to anchor.
+     */
+    virtual bool IsMovableFromAnchorPoint() const;
+
+    /**
+     * Get the parent schematic this item lives on.
+     * @return the parent schematic this item lives on, or nullptr.
+     */
+    CHEM_SCHEMATIC* Schematic() const;
+
+    /**
+     * Get the parent screen this item lives on.
+     * @return the parent screen this item lives on, or nullptr.
+     */
+    CHEM_SCREEN* Screen() const;
+
+    /**
+     * Check if the item is locked.
+     * @return true if the item is locked, false otherwise.
+     */
+    virtual bool IsLocked() const;
+
+    /**
+     * Set the locked state of the item.
+     * @param aLocked - true to lock the item, false to unlock.
+     */
+    virtual void SetLocked( bool aLocked );
+
+    /**
+     * Allow items to support hypertext actions when hovered/clicked.
+     * @return true if the item supports hypertext actions.
+     */
+    virtual bool IsHypertext() const;
+
+    /**
+     * Execute hypertext action when clicked.
+     * @param aFrame - The frame containing the item.
+     */
+    virtual void DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const;
+
+    /**
+     * Return the layer this item is on.
+     * @return The layer index.
+     */
+    virtual int GetLayer() const;
+
+    /**
+     * Set the layer this item is on.
+     * @param aLayer - The layer index to set.
+     */
+    virtual void SetLayer( int aLayer );
+
+    /**
+     * Set the position of the item.
+     * @param aPos - The new position vector.
+     */
+    virtual void SetPosition( const VECTOR2I& aPos ) override;
+
+    /**
+     * Get the position of the item.
+     * @return The position vector.
+     */
+    virtual VECTOR2I GetPosition() const override;
+
+    /**
+     * Get the bounding box of this item.
+     * @return The bounding box.
+     */
+    virtual const BOX2I GetBoundingBox() const override;
+
+    /**
+     * Test if a position is inside or on the boundary of this item.
+     * @param aPosition - The position to test.
+     * @param aAccuracy - Hit test accuracy.
+     * @return True if the position is within the item.
+     */
+    virtual bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
+
+    /**
+     * Test if a rectangle intersects this item.
+     * @param aRect - The rectangle to test.
+     * @param aContained - True to test for containment instead of intersection.
+     * @param aAccuracy - Hit test accuracy.
+     * @return True if the rectangle intersects or contains the item.
+     */
+    virtual bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
+
+    /**
+     * Get a description of this item for display purposes.
+     * @param aUnitsProvider - Units provider for conversion.
+     * @param aFull - Whether to show full description.
+     * @return The description.
+     */
+    virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+
+protected:
+    VECTOR2I m_pos;  // Position of the item
 };
 
 #endif // CHEM_ITEM_H 

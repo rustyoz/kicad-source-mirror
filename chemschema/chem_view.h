@@ -26,19 +26,56 @@
 
 #include <view/view.h>
 
+
+
+/**
+ * Class to store display options for the chemical schematic
+ */
+class CHEM_DISPLAY_OPTIONS
+{
+public:
+    bool m_showGrid;
+    bool m_showLabels;
+    bool m_showConnections;
+    bool m_showSymbols;
+    
+    CHEM_DISPLAY_OPTIONS() :
+        m_showGrid( true ),
+        m_showLabels( true ),
+        m_showConnections( true ),
+        m_showSymbols( true )
+    {
+    }
+};
+
 class CHEM_SCHEMATIC;
 
 /**
- * A VIEW implementation for handling the specific requirements of the chemical process flow diagram.
+ * Class CHEM_VIEW
+ * is a VIEW implementation for the chemical schematic.
  */
 class CHEM_VIEW : public KIGFX::VIEW
 {
 public:
+    /**
+     * Constructor
+     * @param aIsDynamic True for a dynamic view, false for a static view
+     */
     CHEM_VIEW( bool aIsDynamic = true );
+    
     ~CHEM_VIEW();
 
     // Set the chemical schematic model for this view
     void SetChemSchematic( CHEM_SCHEMATIC* aChemSchematic );
+    
+    // Get the chemical schematic model
+    CHEM_SCHEMATIC* GetChemSchematic() const;
+    
+    // Update all items in the view
+    void UpdateAllItems();
+    
+    // Update display options
+    void UpdateDisplayOptions( const CHEM_DISPLAY_OPTIONS& aOptions );
 
 private:
     CHEM_SCHEMATIC* m_chemSchematic;

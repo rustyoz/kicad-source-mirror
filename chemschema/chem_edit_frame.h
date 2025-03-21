@@ -114,9 +114,9 @@ public:
     void UpdateTitleBar();
     
     /**
-     * Update the status bar
+     * Update the status bar with current information
      */
-    void UpdateStatusBar();
+    void UpdateStatusBar() override;
     
     /**
      * Update the toolbar

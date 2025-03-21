@@ -24,38 +24,71 @@
 #ifndef CHEM_SCREEN_H
 #define CHEM_SCREEN_H
 
-#include "chem_item.h"
-#include <color4d.h>
 #include <vector>
+#include <wx/gdicmn.h>
+#include <wx/string.h>
+#include "base_screen.h"
+#include "chem_item.h"
+#include <gal/color4d.h>
+#include <geometry/rtree.h>
+
+// Plot options for chemical schematics
+struct CHEM_PLOT_OPTS
+{
+    bool m_plotBackground;
+    bool m_plotBorder;
+    bool m_plotTitle;
+    bool m_plotLegend;
+    bool m_plotGrid;
+    bool m_plotAxes;
+    bool m_plotLabels;
+    bool m_plotValues;
+    bool m_plotUnits;
+    bool m_plotComments;
+    bool m_plotAnnotations;
+    bool m_plotFootprints;
+    bool m_plotConnections;
+    bool m_plotNetNames;
+    bool m_plotNetCodes;
+    bool m_plotBusEntries;
+    bool m_plotHiddenPins;
+    bool m_plotHiddenFields;
+    bool m_plotHiddenText;
+    bool m_plotHiddenGraphics;
+    bool m_plotHiddenFootprints;
+    bool m_plotHiddenConnections;
+    bool m_plotHiddenNetNames;
+    bool m_plotHiddenNetCodes;
+    bool m_plotHiddenBusEntries;
+    bool m_plotHiddenAnnotations;
+    bool m_plotHiddenComments;
+    bool m_plotHiddenValues;
+    bool m_plotHiddenUnits;
+    bool m_plotHiddenLabels;
+    bool m_plotHiddenGrid;
+    bool m_plotHiddenAxes;
+    bool m_plotHiddenTitle;
+    bool m_plotHiddenLegend;
+    bool m_plotHiddenBorder;
+    bool m_plotHiddenBackground;
+};
 
 class PLOTTER;
+class UNITS_PROVIDER;
+class CHEM_SCHEMATIC;
 
 /**
  * Class CHEM_SCREEN
- * Represents a filter/screen element in a chemical process flow diagram.
+ * Represents a screen in a chemical process flow diagram.
  */
-class CHEM_SCREEN : public CHEM_ITEM
+class CHEM_SCREEN : public BASE_SCREEN
 {
 public:
     /**
-     * Enum defining the screen types
-     */
-    enum SCREEN_TYPE
-    {
-        FILTER,         ///< Basic filter
-        MEMBRANE,       ///< Membrane filter
-        SIEVE,          ///< Molecular sieve
-        ION_EXCHANGE,   ///< Ion exchange filter
-        CARBON,         ///< Carbon filter
-        SEPARATOR,      ///< Phase separator
-        CUSTOM          ///< Custom filter
-    };
-
-    /**
      * Constructor
-     * @param aIUScale - The internal units scale
+     * @param aParent - Parent item
      */
-    CHEM_SCREEN( const IU_PER_MILS& aIUScale = Mils2iu );
+    CHEM_SCREEN( EDA_ITEM* aParent = nullptr );
 
     /**
      * Copy constructor
@@ -75,27 +108,61 @@ public:
     virtual EDA_ITEM* Clone() const override;
 
     /**
-     * Implementation of the ViewGetLayers method from CHEM_ITEM
+     * Implementation of the ViewGetLayers method from BASE_SCREEN
      */
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     /**
      * Swap data with another item
      * @param aItem - Item to swap data with
      */
-    virtual void SwapData( CHEM_ITEM* aItem );
+    virtual void SwapData( EDA_ITEM* aItem );
 
     /**
      * Set the screen position
      * @param aPosition - The position
      */
-    void SetPosition( const VECTOR2I& aPosition );
+    virtual void SetPosition( const VECTOR2I& aPosition ) override;
 
     /**
      * Get the screen position
      * @return The position
      */
-    const VECTOR2I& GetPosition() const;
+    virtual VECTOR2I GetPosition() const override;
+
+    /**
+     * Get the focus position (visual center)
+     * @return The focus position
+     */
+    virtual const VECTOR2I GetFocusPosition() const override;
+
+    /**
+     * Get the sort position
+     * @return The sort position
+     */
+    virtual VECTOR2I GetSortPosition() const override;
+
+    /**
+     * Get the item description for display
+     * @param aUnitsProvider - Units provider for conversion
+     * @param aFull - Whether to show full description
+     * @return The description
+     */
+    virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+
+    /**
+     * Check if item supports text replacement
+     * @return True if replaceable
+     */
+    virtual bool IsReplaceable() const override;
+
+    /**
+     * Replace text in the item
+     * @param aSearchData - Search criteria
+     * @param aAuxData - Auxiliary data
+     * @return True if replaced
+     */
+    virtual bool Replace( const EDA_SEARCH_DATA& aSearchData, void* aAuxData = nullptr ) override;
 
     /**
      * Set the screen size
@@ -108,18 +175,6 @@ public:
      * @return The size
      */
     const VECTOR2I& GetSize() const;
-
-    /**
-     * Set the screen type
-     * @param aType - The type
-     */
-    void SetScreenType( SCREEN_TYPE aType );
-
-    /**
-     * Get the screen type
-     * @return The type
-     */
-    SCREEN_TYPE GetScreenType() const;
 
     /**
      * Set the screen description
@@ -161,25 +216,25 @@ public:
      * Set the outline color
      * @param aColor - The color
      */
-    void SetOutlineColor( const COLOR4D& aColor );
+    void SetOutlineColor( const KIGFX::COLOR4D& aColor );
 
     /**
      * Get the outline color
      * @return The color
      */
-    COLOR4D GetOutlineColor() const;
+    KIGFX::COLOR4D GetOutlineColor() const;
 
     /**
      * Set the fill color
      * @param aColor - The color
      */
-    void SetFillColor( const COLOR4D& aColor );
+    void SetFillColor( const KIGFX::COLOR4D& aColor );
 
     /**
      * Get the fill color
      * @return The color
      */
-    COLOR4D GetFillColor() const;
+    KIGFX::COLOR4D GetFillColor() const;
 
     /**
      * Set the line width
@@ -194,22 +249,10 @@ public:
     int GetLineWidth() const;
 
     /**
-     * Set the mesh density (for drawing screen pattern)
-     * @param aDensity - The mesh density (1-10)
-     */
-    void SetMeshDensity( int aDensity );
-
-    /**
-     * Get the mesh density
-     * @return The mesh density
-     */
-    int GetMeshDensity() const;
-
-    /**
      * Get the bounding box
      * @return The bounding box
      */
-    BOX2I GetBoundingBox() const;
+    virtual const BOX2I GetBoundingBox() const override;
 
     /**
      * Get the bounding boxes for this screen
@@ -222,7 +265,7 @@ public:
      * @param aUnits - Units for display
      * @return String for menu
      */
-    virtual wxString GetSelectMenuText( EDA_UNITS aUnits ) const override;
+    wxString GetSelectMenuText( EDA_UNITS aUnits ) const;
 
     /**
      * Get the icon for menus
@@ -270,17 +313,60 @@ public:
      */
     virtual bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
+    /**
+     * Get the parent schematic this screen belongs to.
+     * @return The parent schematic, or nullptr.
+     */
+    CHEM_SCHEMATIC* Schematic() const;
+
+    /**
+     * Get the full RTree for iterating over items.
+     * @return Complete RTree of the screen's items.
+     */
+    RTree<CHEM_ITEM*, int, 2>& Items() { return m_rtree; }
+    const RTree<CHEM_ITEM*, int, 2>& Items() const { return m_rtree; }
+
+    /**
+     * Check if the screen is empty.
+     * @return true if the screen has no items.
+     */
+    bool IsEmpty() const
+    {
+        return m_rtree.Count() == 0;
+    }
+
+    /**
+     * Check if the screen has items of a specific type.
+     * @param aItemType - The type to check for.
+     * @return true if the screen has items of the specified type.
+     */
+    bool HasItems( KICAD_T aItemType ) const;
+
+    /**
+     * Plot the screen to a plotter.
+     * @param aPlotter - The plotter to plot to.
+     * @param aBackground - Whether to plot background.
+     * @param aPlotOpts - Plot options.
+     * @param aUnit - Unit to plot.
+     * @param aBodyStyle - Body style to plot.
+     * @param aOffset - Offset for plotting.
+     * @param aDimmed - Whether to plot dimmed.
+     */
+    virtual void Plot( PLOTTER* aPlotter, bool aBackground,
+                      const CHEM_PLOT_OPTS& aPlotOpts,
+                      int aUnit, int aBodyStyle,
+                      const VECTOR2I& aOffset, bool aDimmed );
+
 private:
-    VECTOR2I m_position;       ///< Position of the screen
-    VECTOR2I m_size;           ///< Size of the screen
-    SCREEN_TYPE m_screenType;  ///< Type of screen
-    wxString m_description;    ///< Description
-    wxString m_name;           ///< Name
-    int m_rotationAngle;       ///< Rotation angle in tenths of a degree
-    COLOR4D m_outlineColor;    ///< Color of the outline
-    COLOR4D m_fillColor;       ///< Fill color
-    int m_lineWidth;           ///< Width of the outline
-    int m_meshDensity;         ///< Density of the mesh pattern (1-10)
+    VECTOR2I m_position;     ///< Position of the screen
+    VECTOR2I m_size;         ///< Size of the screen
+    wxString m_description;  ///< Description
+    wxString m_name;         ///< Name
+    int m_rotationAngle;     ///< Rotation angle in tenths of a degree
+    KIGFX::COLOR4D m_outlineColor;  ///< Color of the outline
+    KIGFX::COLOR4D m_fillColor;     ///< Fill color
+    int m_lineWidth;         ///< Width of the outline
+    RTree<CHEM_ITEM*, int, 2> m_rtree;  ///< Spatial index for items
 };
 
 #endif // CHEM_SCREEN_H 

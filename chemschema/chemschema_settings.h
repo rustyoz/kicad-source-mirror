@@ -36,12 +36,20 @@ namespace CHEMSCHEMA
     };
 }
 
+// Define our own grid settings to avoid type mismatches
+struct CHEMSCHEMA_GRID_SETTINGS
+{
+    int  last_size_idx;
+    bool show;
+    bool snap;
+};
+
 class CHEMSCHEMA_SETTINGS : public APP_SETTINGS_BASE
 {
 public:
     struct WINDOW_SETTINGS
     {
-        GRID_SETTINGS grid;
+        CHEMSCHEMA_GRID_SETTINGS grid;
         // Add more window settings as needed
     };
 

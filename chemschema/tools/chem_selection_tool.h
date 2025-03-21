@@ -24,10 +24,30 @@
 #ifndef CHEM_SELECTION_TOOL_H
 #define CHEM_SELECTION_TOOL_H
 
+#include <eda_units.h>
+#include <tool/tool_manager.h>
+#include <tool/action_menu.h>
+#include <tool/tool_event.h>
+#include <tool/tool_action.h>
+#include <tool/common_tools.h>
 #include <tool/tool_interactive.h>
 #include <tool/selection.h>
 #include <tool/selection_conditions.h>
 #include <tool/tool_menu.h>
+#include <tool/actions.h>
+#include <view/view.h>
+#include <view/view_controls.h>
+#include <gal/graphics_abstraction_layer.h>
+#include <geometry/seg.h>
+
+#include "chem_schematic.h"
+#include "chem_item.h"
+#include "chem_edit_frame.h"
+#include "chem_symbol.h"
+#include "chem_sheet.h"
+#include "chem_sheet_path.h"
+#include "chem_connection.h"
+#include "chem_label.h"
 
 class CHEM_EDIT_FRAME;
 
@@ -47,11 +67,6 @@ public:
      * Destructor
      */
     ~CHEM_SELECTION_TOOL();
-
-    /**
-     * Tool name
-     */
-    const char* GetName() const override { return "chemschema.InteractiveSelection"; }
 
     /**
      * Reset the tool state
@@ -101,16 +116,15 @@ public:
     SELECTION& GetSelection() { return m_selection; }
 
     /**
-     * Set up and return the selection context menu
-     * @return Pointer to the selection menu items
-     */
-    TOOL_MENU_ITEMS GetToolMenuItems();
-
-    /**
      * Set the context menu for the selection tool
      * @param aMenu - Pointer to the menu
      */
     void SetContextMenu( TOOL_MENU* aMenu ) { m_menu = aMenu; }
+
+    /**
+     * Initialize the selection tool's menu
+     */
+    void InitMenu();
 
     /**
      * Move selected items
@@ -155,6 +169,13 @@ private:
      * Highlight selected items
      */
     void HighlightSelection();
+
+    /**
+     * Check if a point is contained within any selected item
+     * @param aPosition - Point to check
+     * @return True if the point is within a selected item
+     */
+    bool ContainsPoint( const VECTOR2I& aPosition );
 
     /**
      * Handle click on an item

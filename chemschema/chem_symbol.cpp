@@ -92,10 +92,11 @@ EDA_ITEM* CHEM_SYMBOL::Clone() const
 }
 
 
-void CHEM_SYMBOL::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> CHEM_SYMBOL::ViewGetLayers() const
 {
-    aLayers[0] = CHEM_LAYER_SYMBOLS;
-    aCount = 1;
+    std::vector<int> layers;
+    layers.push_back( CHEM_LAYER_SYMBOLS );
+    return layers;
 }
 
 
