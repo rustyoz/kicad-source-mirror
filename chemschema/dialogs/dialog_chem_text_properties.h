@@ -21,58 +21,32 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef DIALOG_SYMBOL_PROPERTIES_H
-#define DIALOG_SYMBOL_PROPERTIES_H
+#ifndef DIALOG_CHEM_TEXT_PROPERTIES_H
+#define DIALOG_CHEM_TEXT_PROPERTIES_H
 
 #include <dialog_shim.h>
+#include "chem_text.h"
 
+class CHEM_EDIT_FRAME;
 class wxTextCtrl;
+class wxChoice;
+class wxSpinCtrl;
 
-/**
- * Dialog for editing symbol properties in the chemical process flow diagram.
- */
-class DIALOG_SYMBOL_PROPERTIES : public DIALOG_SHIM
+class DIALOG_CHEM_TEXT_PROPERTIES : public DIALOG_SHIM
 {
 public:
-    /**
-     * Constructor
-     * @param aParent - Parent window
-     * @param aTitle - Window title
-     */
-    DIALOG_SYMBOL_PROPERTIES( wxWindow* aParent, const wxString& aTitle = wxEmptyString );
-    
-    /**
-     * Destructor
-     */
-    ~DIALOG_SYMBOL_PROPERTIES();
-    
-    /**
-     * Set the symbol name
-     * @param aName - The symbol name
-     */
-    void SetSymbolName( const wxString& aName );
-    
-    /**
-     * Get the symbol name
-     * @return The symbol name
-     */
-    wxString GetSymbolName() const;
-    
-    /**
-     * Set the symbol description
-     * @param aDescription - The symbol description
-     */
-    void SetDescription( const wxString& aDescription );
-    
-    /**
-     * Get the symbol description
-     * @return The symbol description
-     */
-    wxString GetDescription() const;
-    
+    DIALOG_CHEM_TEXT_PROPERTIES( CHEM_EDIT_FRAME* aParent, CHEM_TEXT* aText );
+    ~DIALOG_CHEM_TEXT_PROPERTIES() { }
+
+    bool TransferDataToWindow() override;
+    bool TransferDataFromWindow() override;
+
 private:
-    wxTextCtrl* m_nameCtrl;
-    wxTextCtrl* m_descCtrl;
+    CHEM_EDIT_FRAME* m_frame;
+    CHEM_TEXT* m_text;
+    wxTextCtrl* m_textCtrl;
+    wxChoice* m_alignmentChoice;
+    wxSpinCtrl* m_sizeCtrl;
 };
 
-#endif // DIALOG_SYMBOL_PROPERTIES_H 
+#endif // DIALOG_CHEM_TEXT_PROPERTIES_H 

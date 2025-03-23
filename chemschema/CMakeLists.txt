@@ -25,8 +25,15 @@ set( CHEMSCHEMA_SRCS
     chem_schematic.cpp
     chem_view.cpp
     chem_edit_frame.cpp
-    tools/chem_actions.cpp
-    tools/chem_actions.h
+    chem_painter.cpp
+    chem_frame.cpp
+    chem_draw_panel.cpp
+    chem_render_settings.cpp
+    chem_base_frame.cpp
+    chem_collectors.cpp
+    chem_connection.cpp
+    chem_undo_redo.cpp
+    chem_validators.cpp
     )
 
 set( CHEMSCHEMA_COMMON_SRCS
@@ -47,6 +54,9 @@ set( CHEMSCHEMA_DIALOGS
     dialogs/dialog_symbol_properties.cpp
     dialogs/dialog_chem_properties.cpp
     dialogs/dialog_edit_label.cpp
+    dialogs/dialog_chem_text_properties.cpp
+    dialogs/dialog_chem_line_properties.cpp
+    dialogs/dialog_chem_junction_properties.cpp
     )
 
 set( CHEMSCHEMA_TOOLS
@@ -54,6 +64,24 @@ set( CHEMSCHEMA_TOOLS
     tools/chem_drawing_tools.cpp
     tools/chem_selection_tool.cpp
     tools/chem_measurement_tool.cpp
+    tools/chem_placement_tool.cpp
+    tools/chem_connection_tool.cpp
+    tools/chem_inspection_tool.cpp
+    tools/chem_actions.cpp
+    tools/chem_move_tool.cpp
+    tools/chem_selection.cpp
+    )
+
+set( CHEMSCHEMA_HEADERS
+    chem_actions.h
+    chem_base_frame.h
+    chem_collectors.h
+    chem_connection.h
+    chem_draw_panel.h
+    chem_frame.h
+    chem_includes.h
+    chem_painter.h
+    chem_render_settings.h
     )
 
 # Create a shared library for the actual chemical process flow diagram editor

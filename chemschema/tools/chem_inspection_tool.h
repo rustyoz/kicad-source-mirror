@@ -21,58 +21,47 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef DIALOG_SYMBOL_PROPERTIES_H
-#define DIALOG_SYMBOL_PROPERTIES_H
+#ifndef CHEM_INSPECTION_TOOL_H
+#define CHEM_INSPECTION_TOOL_H
 
-#include <dialog_shim.h>
+#include <tool/tool_interactive.h>
+#include "chem_edit_frame.h"
 
-class wxTextCtrl;
+class CHEM_EDIT_FRAME;
 
 /**
- * Dialog for editing symbol properties in the chemical process flow diagram.
+ * Tool for inspecting chemical elements and connections in the chemical schematic editor.
  */
-class DIALOG_SYMBOL_PROPERTIES : public DIALOG_SHIM
+class CHEM_INSPECTION_TOOL : public TOOL_INTERACTIVE
 {
 public:
+    CHEM_INSPECTION_TOOL();
+    ~CHEM_INSPECTION_TOOL() override { }
+
+    /// @copydoc TOOL_INTERACTIVE::Init()
+    bool Init() override;
+
+    /// @copydoc TOOL_INTERACTIVE::Reset()
+    void Reset( RESET_REASON aReason ) override;
+
     /**
-     * Constructor
-     * @param aParent - Parent window
-     * @param aTitle - Window title
+     * Show properties of the selected item.
      */
-    DIALOG_SYMBOL_PROPERTIES( wxWindow* aParent, const wxString& aTitle = wxEmptyString );
-    
+    int ShowItemProperties( const TOOL_EVENT& aEvent );
+
     /**
-     * Destructor
+     * Highlight connected items.
      */
-    ~DIALOG_SYMBOL_PROPERTIES();
-    
+    int HighlightConnections( const TOOL_EVENT& aEvent );
+
     /**
-     * Set the symbol name
-     * @param aName - The symbol name
+     * Show chemical information for the selected item.
      */
-    void SetSymbolName( const wxString& aName );
-    
-    /**
-     * Get the symbol name
-     * @return The symbol name
-     */
-    wxString GetSymbolName() const;
-    
-    /**
-     * Set the symbol description
-     * @param aDescription - The symbol description
-     */
-    void SetDescription( const wxString& aDescription );
-    
-    /**
-     * Get the symbol description
-     * @return The symbol description
-     */
-    wxString GetDescription() const;
-    
+    int ShowChemicalInfo( const TOOL_EVENT& aEvent );
+
 private:
-    wxTextCtrl* m_nameCtrl;
-    wxTextCtrl* m_descCtrl;
+    CHEM_EDIT_FRAME* m_frame;
+    bool m_highlightActive;
 };
 
-#endif // DIALOG_SYMBOL_PROPERTIES_H 
+#endif // CHEM_INSPECTION_TOOL_H 

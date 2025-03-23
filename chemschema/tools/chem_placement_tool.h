@@ -21,58 +21,52 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef DIALOG_SYMBOL_PROPERTIES_H
-#define DIALOG_SYMBOL_PROPERTIES_H
+#ifndef CHEM_PLACEMENT_TOOL_H
+#define CHEM_PLACEMENT_TOOL_H
 
-#include <dialog_shim.h>
+#include <tool/tool_interactive.h>
+#include "chem_edit_frame.h"
 
-class wxTextCtrl;
+class CHEM_EDIT_FRAME;
 
 /**
- * Dialog for editing symbol properties in the chemical process flow diagram.
+ * Tool for placing chemical elements and symbols in the chemical schematic editor.
  */
-class DIALOG_SYMBOL_PROPERTIES : public DIALOG_SHIM
+class CHEM_PLACEMENT_TOOL : public TOOL_INTERACTIVE
 {
 public:
+    CHEM_PLACEMENT_TOOL();
+    ~CHEM_PLACEMENT_TOOL() override { }
+
+    /// @copydoc TOOL_INTERACTIVE::Init()
+    bool Init() override;
+
+    /// @copydoc TOOL_INTERACTIVE::Reset()
+    void Reset( RESET_REASON aReason ) override;
+
     /**
-     * Constructor
-     * @param aParent - Parent window
-     * @param aTitle - Window title
+     * The main loop for the placement tool.
      */
-    DIALOG_SYMBOL_PROPERTIES( wxWindow* aParent, const wxString& aTitle = wxEmptyString );
-    
+    int PlaceChemItem( const TOOL_EVENT& aEvent );
+
     /**
-     * Destructor
+     * Place a chemical symbol.
      */
-    ~DIALOG_SYMBOL_PROPERTIES();
-    
+    int PlaceSymbol( const TOOL_EVENT& aEvent );
+
     /**
-     * Set the symbol name
-     * @param aName - The symbol name
+     * Place a chemical label.
      */
-    void SetSymbolName( const wxString& aName );
-    
+    int PlaceLabel( const TOOL_EVENT& aEvent );
+
     /**
-     * Get the symbol name
-     * @return The symbol name
+     * Place a chemical junction.
      */
-    wxString GetSymbolName() const;
-    
-    /**
-     * Set the symbol description
-     * @param aDescription - The symbol description
-     */
-    void SetDescription( const wxString& aDescription );
-    
-    /**
-     * Get the symbol description
-     * @return The symbol description
-     */
-    wxString GetDescription() const;
-    
+    int PlaceJunction( const TOOL_EVENT& aEvent );
+
 private:
-    wxTextCtrl* m_nameCtrl;
-    wxTextCtrl* m_descCtrl;
+    CHEM_EDIT_FRAME* m_frame;
+    bool m_inPlacement;
 };
 
-#endif // DIALOG_SYMBOL_PROPERTIES_H 
+#endif // CHEM_PLACEMENT_TOOL_H 

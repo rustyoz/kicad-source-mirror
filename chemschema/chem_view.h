@@ -25,8 +25,21 @@
 #define CHEM_VIEW_H
 
 #include <view/view.h>
+#include <memory>
 
+class CHEM_BASE_FRAME;
+class CHEM_SCREEN;
+class LIB_SYMBOL;
+class DS_PROXY_VIEW_ITEM;
 
+namespace KIGFX
+{
+    class VIEW_GROUP;
+
+    namespace PREVIEW
+    {
+        class SELECTION_AREA;
+    };
 
 /**
  * Class to store display options for the chemical schematic
@@ -57,13 +70,29 @@ class CHEM_SCHEMATIC;
 class CHEM_VIEW : public KIGFX::VIEW
 {
 public:
-    /**
-     * Constructor
-     * @param aIsDynamic True for a dynamic view, false for a static view
-     */
-    CHEM_VIEW( bool aIsDynamic = true );
-    
+    // Note: aFrame is used to know the sheet path name when drawing the drawing sheet.
+    // It can be null.
+    CHEM_VIEW( CHEM_BASE_FRAME* aFrame );
     ~CHEM_VIEW();
+
+    void Cleanup();
+
+    void DisplaySheet( const CHEM_SCREEN* aScreen );
+    void DisplaySymbol( LIB_SYMBOL* aSymbol );
+
+    // Call it to set new draw area limits (max working and draw area size)
+    void ResizeSheetWorkingArea( const CHEM_SCREEN* aScreen );
+
+    void SetScale( double aScale, VECTOR2D aAnchor = { 0, 0 } ) override;
+
+    /**
+     * Clear the hide flag of all items in the view
+     */
+    void ClearHiddenFlags();
+
+    void HideDrawingSheet();
+
+    DS_PROXY_VIEW_ITEM* GetDrawingSheet() const { return m_drawingSheet.get(); }
 
     // Set the chemical schematic model for this view
     void SetChemSchematic( CHEM_SCHEMATIC* aChemSchematic );
@@ -78,7 +107,14 @@ public:
     void UpdateDisplayOptions( const CHEM_DISPLAY_OPTIONS& aOptions );
 
 private:
-    CHEM_SCHEMATIC* m_chemSchematic;
+    CHEM_BASE_FRAME* m_frame;    // The frame using this view. Can be null. Used mainly
+                                 // to know the sheet path name when drawing the drawing sheet
+
+    std::unique_ptr<DS_PROXY_VIEW_ITEM> m_drawingSheet;
+
+    CHEM_SCHEMATIC* m_chemSchematic;  // The chemical schematic model being viewed
 };
+
+}; // namespace KIGFX
 
 #endif // CHEM_VIEW_H 

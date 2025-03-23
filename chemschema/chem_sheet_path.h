@@ -56,6 +56,25 @@ public:
     size_t size() const { return m_sheets.size(); }
 
     /**
+     * Clear all sheets from the path.
+     */
+    void clear() 
+    { 
+        m_sheets.clear();
+        Rehash();
+    }
+
+    /**
+     * Add a sheet to the path.
+     * @param aSheet - The sheet to add.
+     */
+    void push_back( CHEM_SHEET* aSheet )
+    {
+        m_sheets.push_back( aSheet );
+        Rehash();
+    }
+
+    /**
      * Check if this path is empty.
      * @return true if empty.
      */
@@ -139,10 +158,24 @@ public:
     void SetPageNumber( const wxString& aPageNumber );
 
 private:
-    std::vector<CHEM_SHEET*> m_sheets;
-    int m_virtualPageNumber;
+    int m_virtualPageNumber;           ///< Page numbers are maintained by the sheet load order.
     size_t m_current_hash;
     wxString m_cached_page_number;
+
+    std::map<std::pair<wxString, wxString>, bool> m_recursion_test_cache;
+
+    void Rehash()
+    {
+        size_t hash = 0;
+        for( CHEM_SHEET* sheet : m_sheets )
+        {
+            hash ^= std::hash<void*>{}( (void*)sheet ) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+        m_current_hash = hash;
+    }
+
+protected:
+    std::vector<CHEM_SHEET*> m_sheets;
 };
 
 /**

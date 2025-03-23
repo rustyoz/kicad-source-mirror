@@ -419,3 +419,4 @@ const wxFileName& CHEM_EDIT_FRAME::GetCurrentFile() const
 {
     return m_currentFile;
 } 
+

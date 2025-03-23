@@ -43,12 +43,16 @@
 
 #include "chem_item.h"
 #include "chem_schematic.h"
+#include "chem_base_frame.h"
+#include "chem_draw_panel.h"
 #include "chem_edit_frame.h"
 #include "chem_symbol.h"
 #include "chem_sheet.h"
 #include "chem_sheet_path.h"
 #include "chem_connection.h"
 #include "chem_label.h"
+#include "tools/chem_selection.h"
+#include "../chem_collectors.h"
 
 class CHEM_EDIT_FRAME;
 
@@ -67,13 +71,13 @@ public:
     /**
      * Destructor
      */
-    ~CHEM_SELECTION_TOOL();
+    ~CHEM_SELECTION_TOOL() override;
 
     /**
      * Reset the tool state
      * @param aReason - Reason for the reset
      */
-    void Reset( RESET_REASON aReason ) override;
+    void Reset( RESET_REASON aReason = MODEL_RELOAD ) override;
 
     /**
      * Initialize this tool
@@ -127,6 +131,18 @@ public:
      */
     int ContextMenu( const TOOL_EVENT& aEvent );
 
+    void ClearSelection();
+
+    /**
+     * @return true if the given point is contained in any of selected items' bounding boxes.
+     */
+    bool selectionContains( const VECTOR2I& aPoint ) const;
+
+    /**
+     * Get the current selection
+     */
+    CHEM_SELECTION& GetSelection() { return m_selection; }
+
 protected:
     /**
      * Handle click on an item
@@ -134,8 +150,7 @@ protected:
      * @param aEvent - Tool event
      * @param aAllowDisambiguation - True to allow disambiguation menu
      */
-    bool HandleClick( const VECTOR2I& aPosition, const TOOL_EVENT& aEvent, bool aAllowDisambiguation );
-
+    bool HandleClick( const VECTOR2I& aPosition, const TOOL_EVENT& aEvent, bool aAllowDisambiguation = true );
     /**
      * Disambiguate multiple items at the same position
      * @param aItems - List of items to disambiguate
@@ -143,12 +158,15 @@ protected:
      */
     EDA_ITEM* disambiguateItem( const std::vector<EDA_ITEM*>& aItems, const VECTOR2I& aPosition );
 
+    SELECTION& selection() override { return m_selection; }
+
 private:
     // Private members
     CHEM_EDIT_FRAME*  m_frame;
     TOOL_MENU*        m_menu;             ///< Context menu
     VECTOR2I          m_dragStartPos;     ///< Start position of drag selection
     bool              m_skipMenuEvent;    ///< Flag to skip menu events
+    CHEM_SELECTION    m_selection;        ///< Current selection
 };
 
 #endif // CHEM_SELECTION_TOOL_H 

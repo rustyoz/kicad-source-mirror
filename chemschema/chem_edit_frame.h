@@ -24,7 +24,7 @@
 #ifndef CHEM_EDIT_FRAME_H
 #define CHEM_EDIT_FRAME_H
 
-#include <kiway_player.h>
+#include "chem_base_frame.h"
 #include <wx/filename.h>
 
 class CHEM_SCHEMATIC;
@@ -35,30 +35,20 @@ class CHEM_DISPLAY_OPTIONS;
 /**
  * Main frame for the chemical process flow diagram editor
  */
-class CHEM_EDIT_FRAME : public KIWAY_PLAYER
+class CHEM_EDIT_FRAME : public CHEM_BASE_FRAME
 {
 public:
     /**
      * Constructor
      * @param aKiway - The Kiway instance
      * @param aParent - Parent window
-     * @param aFrameType - Frame type
-     * @param aTitle - Window title
-     * @param aPos - Window position
-     * @param aSize - Window size
-     * @param aStyle - Window style
-     * @param aFrameName - Frame name
      */
-    CHEM_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
-                    const wxString& aTitle, const wxPoint& aPos = wxDefaultPosition,
-                    const wxSize& aSize = wxDefaultSize,
-                    long aStyle = KICAD_DEFAULT_DRAWFRAME_STYLE,
-                    const wxString& aFrameName = wxT( "ChemSchemaFrame" ) );
+    CHEM_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent );
     
     /**
      * Destructor
      */
-    ~CHEM_EDIT_FRAME();
+    ~CHEM_EDIT_FRAME() override;
     
     /**
      * Get the chemical schematic
@@ -70,7 +60,7 @@ public:
      * Get the chemical view
      * @return Pointer to the chemical view
      */
-    CHEM_VIEW* GetChemView() const;
+    KIGFX::CHEM_VIEW* GetChemView() const override;
     
     /**
      * Get the tool manager
@@ -139,7 +129,7 @@ public:
      * @return The current file
      */
     const wxFileName& GetCurrentFile() const;
-    
+
 private:
     CHEM_SCHEMATIC* m_chemSchematic;
     CHEM_VIEW* m_chemView;

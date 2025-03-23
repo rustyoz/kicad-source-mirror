@@ -25,10 +25,9 @@
 #define CHEM_ITEM_H
 
 #include <eda_item.h>
-#include <schematic.h>
-
+#include <chem_schematic.h>
+// Forward declare CHEM_SCREEN instead of including
 class CHEM_SCREEN;
-class CHEM_SCHEMATIC;
 
 /**
  * Base class for all chemical diagram items.

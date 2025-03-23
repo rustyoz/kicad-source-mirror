@@ -21,58 +21,54 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef DIALOG_SYMBOL_PROPERTIES_H
-#define DIALOG_SYMBOL_PROPERTIES_H
+#ifndef CHEM_CONNECTION_TOOL_H
+#define CHEM_CONNECTION_TOOL_H
 
-#include <dialog_shim.h>
+#include <tool/tool_interactive.h>
+#include "chem_edit_frame.h"
 
-class wxTextCtrl;
+class CHEM_EDIT_FRAME;
+class CHEM_CONNECTION;
 
 /**
- * Dialog for editing symbol properties in the chemical process flow diagram.
+ * Tool for creating and editing chemical connections in the chemical schematic editor.
  */
-class DIALOG_SYMBOL_PROPERTIES : public DIALOG_SHIM
+class CHEM_CONNECTION_TOOL : public TOOL_INTERACTIVE
 {
 public:
+    CHEM_CONNECTION_TOOL();
+    ~CHEM_CONNECTION_TOOL() override { }
+
+    /// @copydoc TOOL_INTERACTIVE::Init()
+    bool Init() override;
+
+    /// @copydoc TOOL_INTERACTIVE::Reset()
+    void Reset( RESET_REASON aReason ) override;
+
     /**
-     * Constructor
-     * @param aParent - Parent window
-     * @param aTitle - Window title
+     * Start a new connection.
      */
-    DIALOG_SYMBOL_PROPERTIES( wxWindow* aParent, const wxString& aTitle = wxEmptyString );
-    
+    int StartConnection( const TOOL_EVENT& aEvent );
+
     /**
-     * Destructor
+     * Add a segment to the current connection.
      */
-    ~DIALOG_SYMBOL_PROPERTIES();
-    
+    int AddConnectionSegment( const TOOL_EVENT& aEvent );
+
     /**
-     * Set the symbol name
-     * @param aName - The symbol name
+     * Finish the current connection.
      */
-    void SetSymbolName( const wxString& aName );
-    
+    int FinishConnection( const TOOL_EVENT& aEvent );
+
     /**
-     * Get the symbol name
-     * @return The symbol name
+     * Cancel the current connection.
      */
-    wxString GetSymbolName() const;
-    
-    /**
-     * Set the symbol description
-     * @param aDescription - The symbol description
-     */
-    void SetDescription( const wxString& aDescription );
-    
-    /**
-     * Get the symbol description
-     * @return The symbol description
-     */
-    wxString GetDescription() const;
-    
+    int CancelConnection( const TOOL_EVENT& aEvent );
+
 private:
-    wxTextCtrl* m_nameCtrl;
-    wxTextCtrl* m_descCtrl;
+    CHEM_EDIT_FRAME* m_frame;
+    CHEM_CONNECTION* m_currentConnection;
+    bool m_inConnection;
 };
 
-#endif // DIALOG_SYMBOL_PROPERTIES_H 
+#endif // CHEM_CONNECTION_TOOL_H 

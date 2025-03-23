@@ -28,7 +28,8 @@
 #include <wx/gdicmn.h>
 #include <wx/string.h>
 #include "base_screen.h"
-#include "chem_item.h"
+// Forward declare CHEM_ITEM instead of including
+class CHEM_ITEM;
 #include <gal/color4d.h>
 #include <geometry/rtree.h>
 
@@ -323,7 +324,6 @@ public:
      * Get the full RTree for iterating over items.
      * @return Complete RTree of the screen's items.
      */
-    RTree<CHEM_ITEM*, int, 2>& Items() { return m_rtree; }
     const RTree<CHEM_ITEM*, int, 2>& Items() const { return m_rtree; }
 
     /**

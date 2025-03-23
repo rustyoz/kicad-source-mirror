@@ -39,26 +39,11 @@ CHEM_SCHEMATIC::CHEM_SCHEMATIC( PROJECT* aPrj ) :
 }
 
 
-CHEM_SCHEMATIC::CHEM_SCHEMATIC( const CHEM_SCHEMATIC& other ) :
-    SCHEMATIC( other ),
-    m_rootSheet( nullptr ),
-    m_currentSheet( nullptr ),
-    m_modified( false )
-{
-    m_currentSheet = new CHEM_SHEET_PATH( *other.m_currentSheet );
-    
-    // Deep copy items
-    for( EDA_ITEM* item : other.m_items )
-    {
-        if( item )
-            m_items.push_back( item->Clone() );
-    }
-}
+
 
 
 CHEM_SCHEMATIC::~CHEM_SCHEMATIC()
 {
-    Clear();
     delete m_currentSheet;
 }
 
@@ -80,144 +65,13 @@ bool CHEM_SCHEMATIC::LoadFile( const wxString& aFileName )
         return false;
     }
 
-    Clear();
+    //Clear();
     wxLogMessage( wxT( "Loading chemical process flow diagram from %s" ), aFileName );
     return true;
 }
 
 
-void CHEM_SCHEMATIC::Clear()
-{
-    // Delete all items
-    for( EDA_ITEM* item : m_items )
-        delete item;
 
-    m_items.clear();
-    UpdateView();
-}
-
-
-void CHEM_SCHEMATIC::Add( CHEM_ITEM* aItem )
-{
-    if( aItem )
-    {
-        m_items.push_back( aItem );
-        m_modified = true;
-    }
-}
-
-
-void CHEM_SCHEMATIC::Remove( CHEM_ITEM* aItem )
-{
-    if( aItem )
-    {
-        auto it = std::find( m_items.begin(), m_items.end(), aItem );
-        if( it != m_items.end() )
-        {
-            m_items.erase( it );
-            m_modified = true;
-        }
-    }
-}
-
-
-void CHEM_SCHEMATIC::UpdateView()
-{
-    // Will need to implement view update when rendering system is in place
-}
-
-
-void CHEM_SCHEMATIC::AddSymbol( CHEM_SYMBOL* aSymbol )
-{
-    if( aSymbol )
-    {
-        m_symbols.push_back( aSymbol );
-        m_modified = true;
-    }
-}
-
-
-void CHEM_SCHEMATIC::RemoveSymbol( CHEM_SYMBOL* aSymbol )
-{
-    if( aSymbol )
-    {
-        auto it = std::find( m_symbols.begin(), m_symbols.end(), aSymbol );
-        
-        if( it != m_symbols.end() )
-        {
-            m_symbols.erase( it );
-            m_modified = true;
-        }
-    }
-}
-
-
-const std::vector<CHEM_SYMBOL*>& CHEM_SCHEMATIC::GetSymbols() const
-{
-    return m_symbols;
-}
-
-
-void CHEM_SCHEMATIC::AddConnection( CHEM_CONNECTION* aConnection )
-{
-    if( aConnection )
-    {
-        m_connections.push_back( aConnection );
-        m_modified = true;
-    }
-}
-
-
-void CHEM_SCHEMATIC::RemoveConnection( CHEM_CONNECTION* aConnection )
-{
-    if( aConnection )
-    {
-        auto it = std::find( m_connections.begin(), m_connections.end(), aConnection );
-        
-        if( it != m_connections.end() )
-        {
-            m_connections.erase( it );
-            m_modified = true;
-        }
-    }
-}
-
-
-const std::vector<CHEM_CONNECTION*>& CHEM_SCHEMATIC::GetConnections() const
-{
-    return m_connections;
-}
-
-
-void CHEM_SCHEMATIC::AddLabel( CHEM_LABEL* aLabel )
-{
-    if( aLabel )
-    {
-        m_labels.push_back( aLabel );
-        m_modified = true;
-    }
-}
-
-
-void CHEM_SCHEMATIC::RemoveLabel( CHEM_LABEL* aLabel )
-{
-    if( aLabel )
-    {
-        auto it = std::find( m_labels.begin(), m_labels.end(), aLabel );
-        
-        if( it != m_labels.end() )
-        {
-            m_labels.erase( it );
-            m_modified = true;
-        }
-    }
-}
-
-
-const std::vector<CHEM_LABEL*>& CHEM_SCHEMATIC::GetLabels() const
-{
-    return m_labels;
-}
 
 
 void CHEM_SCHEMATIC::SetFilename( const wxFileName& aFilename )
@@ -264,19 +118,22 @@ void CHEM_SCHEMATIC::Reset()
         m_rootSheet = nullptr;
     }
 
-    m_currentSheet->m_sheets.clear();
+   // m_currentSheet->m_sheets.clear();
 }
 
 void CHEM_SCHEMATIC::SetRoot( CHEM_SHEET* aRootSheet )
 {
-    wxCHECK_RET( aRootSheet, wxT( "Call to SetRoot with null CHEM_SHEET!" ) );
+    wxCHECK_RET( aRootSheet, "Cannot set NULL root sheet" );
 
     m_rootSheet = aRootSheet;
 
-    m_currentSheet->m_sheets.clear();
-    m_currentSheet->m_sheets.push_back( m_rootSheet );
+    // Clear the current sheet path and add the root sheet
+    m_currentSheet->clear();
+    m_currentSheet->push_back( m_rootSheet );
 
+    // Build the hierarchy and notify listeners
     RefreshHierarchy();
+    OnChemSheetChanged();
 }
 
 CHEM_SCREEN* CHEM_SCHEMATIC::RootScreen() const
@@ -287,13 +144,13 @@ CHEM_SCREEN* CHEM_SCHEMATIC::RootScreen() const
 wxString CHEM_SCHEMATIC::GetFileName() const
 {
     CHEM_SCREEN* screen = RootScreen();
-    return screen ? screen->GetName() : wxEmptyString;
+    return screen ? screen->GetName() : wxString( wxEmptyString );
 }
 
 CHEM_SHEET_LIST CHEM_SCHEMATIC::Hierarchy() const
 {
     CHEM_SHEET_LIST hierarchy( m_rootSheet );
-    hierarchy.SortByPageNumbers();
+    //hierarchy.SortByPageNumbers();
     return hierarchy;
 }
 
@@ -303,7 +160,7 @@ void CHEM_SCHEMATIC::RefreshHierarchy()
     if( m_rootSheet )
     {
         CHEM_SHEET_LIST hierarchy( m_rootSheet );
-        hierarchy.BuildSheetList( m_rootSheet );
+        hierarchy.BuildSheetList( m_rootSheet, false );
     }
 }
 
@@ -328,4 +185,52 @@ bool CHEM_SCHEMATIC::IsComplexHierarchy() const
     }
 
     return false;
+}
+
+void CHEM_SCHEMATIC::AddChemListener( CHEM_SCHEMATIC_LISTENER* aListener )
+{
+    if( !alg::contains( m_chemListeners, aListener ) )
+        m_chemListeners.push_back( aListener );
+}
+
+
+void CHEM_SCHEMATIC::RemoveChemListener( CHEM_SCHEMATIC_LISTENER* aListener )
+{
+    auto it = std::find( m_chemListeners.begin(), m_chemListeners.end(), aListener );
+
+    if( it != m_chemListeners.end() )
+    {
+        std::iter_swap( it, m_chemListeners.end() - 1 );
+        m_chemListeners.pop_back();
+    }
+}
+
+
+void CHEM_SCHEMATIC::RemoveAllChemListeners()
+{
+    m_chemListeners.clear();
+}
+
+
+void CHEM_SCHEMATIC::OnChemItemsAdded( std::vector<CHEM_ITEM*>& aItems )
+{
+    InvokeChemListeners( &CHEM_SCHEMATIC_LISTENER::OnChemItemsAdded, *this, aItems );
+}
+
+
+void CHEM_SCHEMATIC::OnChemItemsRemoved( std::vector<CHEM_ITEM*>& aItems )
+{
+    InvokeChemListeners( &CHEM_SCHEMATIC_LISTENER::OnChemItemsRemoved, *this, aItems );
+}
+
+
+void CHEM_SCHEMATIC::OnChemItemsChanged( std::vector<CHEM_ITEM*>& aItems )
+{
+    InvokeChemListeners( &CHEM_SCHEMATIC_LISTENER::OnChemItemsChanged, *this, aItems );
+}
+
+
+void CHEM_SCHEMATIC::OnChemSheetChanged()
+{
+    InvokeChemListeners( &CHEM_SCHEMATIC_LISTENER::OnChemSheetChanged, *this );
 } 

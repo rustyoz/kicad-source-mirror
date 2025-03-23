@@ -95,7 +95,8 @@ CHEM_SELECTION_TOOL::CHEM_SELECTION_TOOL() :
     SELECTION_TOOL( "chemschema.InteractiveSelection" ),
     m_frame( nullptr ),
     m_menu( nullptr ),
-    m_skipMenuEvent( false )
+    m_skipMenuEvent( false ),
+    m_selection( nullptr )
 {
 }
 
@@ -141,6 +142,16 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
         {
             // Update cursor position
             getViewControls()->ForceCursorPosition( false );
+
+            // Update cursor based on selection state
+            if( !selection().Empty() && !hasModifier() && selectionContains( evt->Position() ) )
+            {
+                m_frame->GetCanvas()->SetCurrentCursor( KICURSOR::MOVING );
+            }
+            else
+            {
+                m_frame->GetCanvas()->SetCurrentCursor( KICURSOR::ARROW );
+            }
         }
         
         // Handle mouse buttons
@@ -190,7 +201,7 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             // Begin drag selection
             VECTOR2I pos = getViewControls()->GetCursorPosition();
             
-            if( selection().Empty() || !selection().ContainsPoint( pos ) )
+            if( selection().Empty() || !selectionContains( pos ) )
             {
                 // Start drag selection
                 m_dragStartPos = pos;
@@ -198,8 +209,18 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             }
             else
             {
-                // Begin moving selected items
-                m_toolMgr->RunAction( CHEM_ACTIONS::move );
+                // Check if dragging has started within any of selected items bounding box
+                if( selectionContains( evt->DragOrigin() ) )
+                {
+                    // Begin moving selected items
+                    m_toolMgr->RunAction( CHEM_ACTIONS::moveSelected );
+                }
+                else
+                {
+                    // No -> drag a selection box
+                    m_dragStartPos = pos;
+                    SelectMultiple( *evt );
+                }
             }
         }
         
@@ -229,10 +250,7 @@ void CHEM_SELECTION_TOOL::InitMenu()
 
 void CHEM_SELECTION_TOOL::setTransitions()
 {
-    Go( &CHEM_SELECTION_TOOL::Main, TOOL_EVENT( TC_COMMAND, TA_ANY ) );
-    Go( &CHEM_SELECTION_TOOL::ClearSelection, TOOL_EVENT( TC_COMMAND, TA_CANCEL_TOOL ) );
-    Go( &CHEM_SELECTION_TOOL::ContextMenu, TOOL_EVENT( TC_COMMAND, TA_CHOICE_MENU_CHOICE ) );
-    Go( &CHEM_SELECTION_TOOL::MoveSelected, CHEM_ACTIONS::move.MakeEvent() );
+
 }
 
 int CHEM_SELECTION_TOOL::SelectSingle( const TOOL_EVENT& aEvent )
@@ -403,127 +421,59 @@ bool CHEM_SELECTION_TOOL::HandleClick( const VECTOR2I& aPosition, const TOOL_EVE
     if( !schematic )
         return false;
 
-    std::vector<EDA_ITEM*> items;
-    
-    // Check symbols
-    for( CHEM_SYMBOL* symbol : schematic->GetSymbols() )
-    {
-        if( symbol->HitTest( aPosition ) )
-            items.push_back( symbol );
-    }
-    
-    // Check connections
-    for( CHEM_CONNECTION* conn : schematic->GetConnections() )
-    {
-        if( conn->HitTest( aPosition ) )
-            items.push_back( conn );
-    }
-    
-    // Check labels
-    for( CHEM_LABEL* label : schematic->GetLabels() )
-    {
-        if( label->HitTest( aPosition ) )
-            items.push_back( label );
-    }
+    CHEM_COLLECTOR collector;
+    collector.Collect( schematic->GetCurrentSheet(), aPosition );
 
     // No items found
-    if( items.empty() )
+    if( collector.GetCount() == 0 )
         return false;
-        
+
     // Handle case with multiple items
     EDA_ITEM* item = nullptr;
-    
-    if( items.size() > 1 && aAllowDisambiguation )
+
+    if( collector.GetCount() > 1 && aAllowDisambiguation )
     {
-        item = disambiguateItem( items, aPosition );
+        collector.m_MenuTitle = _( "Select Item:" );
+        if( doSelectionMenu( &collector ) )
+        {
+            if( collector.GetCount() == 1 )
+            {
+                // Single item selected from menu
+                item = collector[0];
+            }
+            else
+            {
+                // "Select All" was chosen
+                for( int i = 0; i < collector.GetCount(); ++i )
+                {
+                    if( m_subtractive || ( m_additive && selection().Contains( collector[i] ) ) )
+                        RemoveItemFromSel( collector[i] );
+                    else
+                        AddItemToSel( collector[i] );
+                }
+                return true;
+            }
+        }
+        else
+        {
+            return false;
+        }
     }
     else
     {
-        item = items[0];
+        item = collector[0];
     }
-    
+
     if( !item )
         return false;
-        
+
     // Toggle item selection
     if( m_subtractive || ( m_additive && selection().Contains( item ) ) )
-    {
         RemoveItemFromSel( item );
-    }
     else
-    {
         AddItemToSel( item );
-    }
-    
+
     return true;
-}
-
-EDA_ITEM* CHEM_SELECTION_TOOL::disambiguateItem( const std::vector<EDA_ITEM*>& aItems, const VECTOR2I& aPosition )
-{
-    if( aItems.empty() )
-        return nullptr;
-
-    if( aItems.size() == 1 )
-        return aItems[0];
-
-    wxMenu menu;
-    menu.SetTitle( _( "Disambiguation" ) );
-
-    int i = 0;
-    for( EDA_ITEM* item : aItems )
-    {
-        wxString text;
-        CHEM_ITEM* chemItem = dynamic_cast<CHEM_ITEM*>( item );
-        
-        if( !chemItem )
-            continue;
-
-        switch( chemItem->Type() )
-        {
-            case CHEM_SYMBOL_T:
-                text = wxString::Format( _( "Symbol: %s" ), 
-                    static_cast<CHEM_SYMBOL*>( chemItem )->GetName() );
-                break;
-            case CHEM_LINE_T:
-                text = _( "Line" );
-                break;
-            case CHEM_JUNCTION_T:
-                text = _( "Junction" );
-                break;
-            case CHEM_LABEL_T:
-                text = wxString::Format( _( "Label: %s" ), 
-                    static_cast<CHEM_LABEL*>( chemItem )->GetText() );
-                break;
-            case CHEM_SCREEN_T:
-                text = _( "Screen" );
-                break;
-            case CHEM_SHEET_T:
-                text = _( "Sheet" );
-                break;
-            default:
-                text = _( "Unknown" );
-                break;
-        }
-
-        wxMenuItem* menuItem = menu.Append( i, text );
-        if( menuItem )
-        {
-            // Store the item pointer using SetRefData since EDA_ITEM inherits from wxObject
-            menuItem->SetRefData( item );
-        }
-        i++;
-    }
-
-    wxPoint pos( aPosition.x, aPosition.y );
-    int selectedId = menu.GetPopupMenuSelection( pos );
-    wxMenuItem* selectedMenuItem = menu.FindItem( selectedId );
-
-    if( selectedMenuItem )
-    {
-        return static_cast<EDA_ITEM*>( selectedMenuItem->GetRefData() );
-    }
-
-    return nullptr;
 }
 
 int CHEM_SELECTION_TOOL::MoveSelected( const TOOL_EVENT& aEvent )
@@ -532,7 +482,7 @@ int CHEM_SELECTION_TOOL::MoveSelected( const TOOL_EVENT& aEvent )
         return 0;
         
     // Forward to the move tool
-    m_toolMgr->RunAction( CHEM_ACTIONS::move );
+    m_toolMgr->RunAction( CHEM_ACTIONS::moveSelected );
     
     return 0;
 }
@@ -551,4 +501,22 @@ int CHEM_SELECTION_TOOL::ContextMenu( const TOOL_EVENT& aEvent )
     }
     
     return 0;
+}
+
+bool CHEM_SELECTION_TOOL::selectionContains( const VECTOR2I& aPoint ) const
+{
+    const unsigned GRIP_MARGIN = 20;
+    int margin = KiROUND( getView()->ToWorld( GRIP_MARGIN ) );
+
+    // Check if the point is located within any of the currently selected items bounding boxes
+    for( EDA_ITEM* item : m_selection )
+    {
+        BOX2I itemBox = item->ViewBBox();
+        itemBox.Inflate( margin ); // Give some margin for gripping an item
+
+        if( itemBox.Contains( aPoint ) )
+            return true;
+    }
+
+    return false;
 } 
