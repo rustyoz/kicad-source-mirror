@@ -35,7 +35,6 @@
 #include <tool/tool_menu.h>
 #include <tool/actions.h>
 
-
 #include <view/view.h>
 #include <view/view_controls.h>
 #include <gal/graphics_abstraction_layer.h>
@@ -56,13 +55,20 @@
 #include "chem_label.h"
 #include "chem_screen.h"
 
-
 using namespace std;
 
-// Define CHEM_SCREEN_T if not defined
-#ifndef CHEM_SCREEN_T
-#define CHEM_SCREEN_T 0x4000
-#endif
+/**
+ * A helper wxWidgets control client data object to store item pointers.
+ */
+class CHEM_ITEM_CLIENT_DATA : public wxClientData
+{
+public:
+    CHEM_ITEM_CLIENT_DATA( EDA_ITEM* aItem ) : m_item(aItem) {}
+    EDA_ITEM* GetItem() const { return m_item; }
+
+private:
+    EDA_ITEM* m_item;
+};
 
 class SELECTION_BOX : public KIGFX::VIEW_ITEM
 {
@@ -86,12 +92,9 @@ private:
 };
 
 CHEM_SELECTION_TOOL::CHEM_SELECTION_TOOL() :
-    TOOL_INTERACTIVE( "chemschema.InteractiveSelection" ),
+    SELECTION_TOOL( "chemschema.InteractiveSelection" ),
     m_frame( nullptr ),
     m_menu( nullptr ),
-    m_additive( false ),
-    m_subtractive( false ),
-    m_multiple( false ),
     m_skipMenuEvent( false )
 {
 }
@@ -102,32 +105,19 @@ CHEM_SELECTION_TOOL::~CHEM_SELECTION_TOOL()
 
 void CHEM_SELECTION_TOOL::Reset( RESET_REASON aReason )
 {
+    SELECTION_TOOL::Reset( aReason );
+    
     if( aReason == MODEL_RELOAD )
     {
         // Clear selection when reloading the schematic
-        m_selection.Clear();
+        selection().Clear();
     }
-}
-
-bool CHEM_SELECTION_TOOL::ContainsPoint( const VECTOR2I& aPosition )
-{
-    for( EDA_ITEM* item : m_selection )
-    {
-        if( item && item->HitTest( aPosition ) )
-            return true;
-    }
-    return false;
 }
 
 int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
 {
     // Main loop: keep receiving events
     m_frame = getEditFrame<CHEM_EDIT_FRAME>();
-    
-    // Reset flags
-    m_multiple = false;
-    m_additive = false;
-    m_subtractive = false;
     
     // Set initial cursor
     getViewControls()->ShowCursor( true );
@@ -138,10 +128,10 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
         if( evt->IsCancel() || evt->IsActivate() )
         {
             if( evt->IsCancel() )
-                ClearSelection();
+                selection().Clear();
                 
             if( evt->IsActivate() && !evt->IsMoveTool() )
-                ClearSelection();
+                selection().Clear();
                 
             break;
         }
@@ -160,11 +150,12 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             VECTOR2I pos = getViewControls()->GetCursorPosition();
             
             // Check modifier keys
-            m_additive = wxGetKeyState( WXK_SHIFT );
-            m_subtractive = wxGetKeyState( WXK_CONTROL );
+            setModifiersState( wxGetKeyState( WXK_SHIFT ), 
+                             wxGetKeyState( WXK_CONTROL ),
+                             wxGetKeyState( WXK_ALT ) );
             
-            if( !m_additive && !m_subtractive && !m_selection.Empty() )
-                ClearSelection();
+            if( !hasModifier() && !selection().Empty() )
+                selection().Clear();
                 
             // Handle the click on items
             HandleClick( pos, *evt, true );
@@ -178,13 +169,13 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             // Select item if not yet selected
             bool selectionModified = false;
             
-            if( m_selection.Empty() )
+            if( selection().Empty() )
             {
                 selectionModified = HandleClick( pos, *evt, true );
             }
             
             // Show context menu if we have a selection or if the module has one
-            if( !m_selection.Empty() && m_menu )
+            if( !selection().Empty() && m_menu )
             {
                 m_menu->ShowContextMenu();
             }
@@ -199,7 +190,7 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             // Begin drag selection
             VECTOR2I pos = getViewControls()->GetCursorPosition();
             
-            if( m_selection.Empty() || !ContainsPoint( pos ) )
+            if( selection().Empty() || !selection().ContainsPoint( pos ) )
             {
                 // Start drag selection
                 m_dragStartPos = pos;
@@ -208,7 +199,7 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             else
             {
                 // Begin moving selected items
-                m_toolMgr->RunAction( "chemschema.InteractiveMove" );
+                m_toolMgr->RunAction( CHEM_ACTIONS::move );
             }
         }
         
@@ -217,8 +208,6 @@ int CHEM_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
         {
             evt->SetPassEvent();
         }
-        
-
     }
     
     return 0;
@@ -243,17 +232,19 @@ void CHEM_SELECTION_TOOL::setTransitions()
     Go( &CHEM_SELECTION_TOOL::Main, TOOL_EVENT( TC_COMMAND, TA_ANY ) );
     Go( &CHEM_SELECTION_TOOL::ClearSelection, TOOL_EVENT( TC_COMMAND, TA_CANCEL_TOOL ) );
     Go( &CHEM_SELECTION_TOOL::ContextMenu, TOOL_EVENT( TC_COMMAND, TA_CHOICE_MENU_CHOICE ) );
+    Go( &CHEM_SELECTION_TOOL::MoveSelected, CHEM_ACTIONS::move.MakeEvent() );
 }
 
 int CHEM_SELECTION_TOOL::SelectSingle( const TOOL_EVENT& aEvent )
 {
     VECTOR2I pos = getViewControls()->GetCursorPosition();
     
-    m_additive = wxGetKeyState( WXK_SHIFT );
-    m_subtractive = wxGetKeyState( WXK_CONTROL );
+    setModifiersState( wxGetKeyState( WXK_SHIFT ), 
+                      wxGetKeyState( WXK_CONTROL ),
+                      wxGetKeyState( WXK_ALT ) );
     
-    if( !m_additive && !m_subtractive && !m_selection.Empty() )
-        ClearSelection();
+    if( !hasModifier() && !selection().Empty() )
+        selection().Clear();
         
     // Handle the click on an item
     bool modified = HandleClick( pos, aEvent, true );
@@ -269,12 +260,12 @@ int CHEM_SELECTION_TOOL::SelectMultiple( const TOOL_EVENT& aEvent )
         return 0;
         
     // Reset flags
-    m_multiple = true;
-    m_additive = wxGetKeyState( WXK_SHIFT );
-    m_subtractive = wxGetKeyState( WXK_CONTROL );
+    setModifiersState( wxGetKeyState( WXK_SHIFT ), 
+                      wxGetKeyState( WXK_CONTROL ),
+                      wxGetKeyState( WXK_ALT ) );
     
-    if( !m_additive && !m_subtractive && !m_selection.Empty() )
-        ClearSelection();
+    if( !hasModifier() && !selection().Empty() )
+        selection().Clear();
         
     // Get initial position
     VECTOR2I dragPos = m_dragStartPos;
@@ -362,15 +353,9 @@ int CHEM_SELECTION_TOOL::SelectMultiple( const TOOL_EVENT& aEvent )
     // Clean up
     getViewControls()->SetAutoPan( false );
     
-    if( !m_selection.Empty() )
+    if( !selection().Empty() )
         m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
         
-    return 0;
-}
-
-int CHEM_SELECTION_TOOL::ClearSelection( const TOOL_EVENT& aEvent )
-{
-    ClearSelection();
     return 0;
 }
 
@@ -381,7 +366,7 @@ int CHEM_SELECTION_TOOL::SelectAll( const TOOL_EVENT& aEvent )
     if( !schematic )
         return 0;
         
-    ClearSelection();
+    selection().Clear();
     
     std::vector<EDA_ITEM*> items;
     
@@ -402,70 +387,14 @@ int CHEM_SELECTION_TOOL::SelectAll( const TOOL_EVENT& aEvent )
     }
     
     // Select all items
-    SelectItems( items );
-    
-    m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
-    
-    return items.size();
-}
-
-void CHEM_SELECTION_TOOL::AddItemToSel( EDA_ITEM* aItem, bool aQuietMode )
-{
-    if( aItem && !m_selection.Contains( aItem ) )
-    {
-        m_selection.Add( aItem );
-        
-        if( !aQuietMode )
-            HighlightSelection();
-    }
-}
-
-void CHEM_SELECTION_TOOL::RemoveItemFromSel( EDA_ITEM* aItem, bool aQuietMode )
-{
-    if( aItem && m_selection.Contains( aItem ) )
-    {
-        m_selection.Remove( aItem );
-        
-        if( !aQuietMode )
-            HighlightSelection();
-    }
-}
-
-void CHEM_SELECTION_TOOL::ClearSelection( bool aQuietMode )
-{
-    if( m_selection.Empty() )
-        return;
-        
-    m_selection.Clear();
-    
-    if( !aQuietMode )
-        HighlightSelection();
-}
-
-void CHEM_SELECTION_TOOL::SelectItems( std::vector<EDA_ITEM*>& aItems )
-{
-    for( EDA_ITEM* item : aItems )
+    for( EDA_ITEM* item : items )
     {
         AddItemToSel( item, true );
     }
     
-    HighlightSelection();
-}
-
-void CHEM_SELECTION_TOOL::HighlightSelection()
-{
-    KIGFX::VIEW* view = getView();
-    if( !view )
-        return;
-
-    for( EDA_ITEM* item : m_selection )
-    {
-        if( item )
-        {
-            view->Update( item );
-        }
-    }
-    view->UpdateAllItems( LAYER_DRAWINGSHEET );
+    m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+    
+    return items.size();
 }
 
 bool CHEM_SELECTION_TOOL::HandleClick( const VECTOR2I& aPosition, const TOOL_EVENT& aEvent, bool aAllowDisambiguation )
@@ -517,7 +446,7 @@ bool CHEM_SELECTION_TOOL::HandleClick( const VECTOR2I& aPosition, const TOOL_EVE
         return false;
         
     // Toggle item selection
-    if( m_subtractive || ( m_additive && m_selection.Contains( item ) ) )
+    if( m_subtractive || ( m_additive && selection().Contains( item ) ) )
     {
         RemoveItemFromSel( item );
     }
@@ -579,7 +508,8 @@ EDA_ITEM* CHEM_SELECTION_TOOL::disambiguateItem( const std::vector<EDA_ITEM*>& a
         wxMenuItem* menuItem = menu.Append( i, text );
         if( menuItem )
         {
-            menuItem->SetRefData( new wxObjectDataPtr<EDA_ITEM>( item ) );
+            // Store the item pointer using SetRefData since EDA_ITEM inherits from wxObject
+            menuItem->SetRefData( item );
         }
         i++;
     }
@@ -590,8 +520,7 @@ EDA_ITEM* CHEM_SELECTION_TOOL::disambiguateItem( const std::vector<EDA_ITEM*>& a
 
     if( selectedMenuItem )
     {
-        wxObjectDataPtr<EDA_ITEM>* data = static_cast<wxObjectDataPtr<EDA_ITEM>*>( selectedMenuItem->GetRefData() );
-        return data->get();
+        return static_cast<EDA_ITEM*>( selectedMenuItem->GetRefData() );
     }
 
     return nullptr;
@@ -599,12 +528,11 @@ EDA_ITEM* CHEM_SELECTION_TOOL::disambiguateItem( const std::vector<EDA_ITEM*>& a
 
 int CHEM_SELECTION_TOOL::MoveSelected( const TOOL_EVENT& aEvent )
 {
-    if( m_selection.Empty() )
+    if( selection().Empty() )
         return 0;
         
-    // This would be implemented in a separate interactive move tool
-    // Here we just forward to that tool
-    m_toolMgr->ProcessEvent( TOOL_EVENT( TC_COMMAND, TA_ACTIVATE, "chemschema.InteractiveMove" ) );
+    // Forward to the move tool
+    m_toolMgr->RunAction( CHEM_ACTIONS::move );
     
     return 0;
 }
@@ -614,13 +542,12 @@ int CHEM_SELECTION_TOOL::ContextMenu( const TOOL_EVENT& aEvent )
     if( m_skipMenuEvent )
         return 0;
         
-    if( m_selection.Empty() )
+    if( selection().Empty() )
         return 0;
         
     if( m_menu )
     {
-        m_menu->UpdateMenu();
-        m_menu->ShowContextMenu( m_selection );
+        m_menu->ShowContextMenu( selection() );
     }
     
     return 0;

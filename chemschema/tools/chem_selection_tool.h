@@ -35,13 +35,14 @@
 #include <tool/selection_conditions.h>
 #include <tool/tool_menu.h>
 #include <tool/actions.h>
+#include <tool/selection_tool.h>
 #include <view/view.h>
 #include <view/view_controls.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <geometry/seg.h>
 
-#include "chem_schematic.h"
 #include "chem_item.h"
+#include "chem_schematic.h"
 #include "chem_edit_frame.h"
 #include "chem_symbol.h"
 #include "chem_sheet.h"
@@ -55,7 +56,7 @@ class CHEM_EDIT_FRAME;
  * CHEM_SELECTION_TOOL
  * Tool responsible for selecting and editing items in the chemical schematic editor.
  */
-class CHEM_SELECTION_TOOL : public TOOL_INTERACTIVE
+class CHEM_SELECTION_TOOL : public SELECTION_TOOL
 {
 public:
     /**
@@ -98,22 +99,10 @@ public:
     int SelectMultiple( const TOOL_EVENT& aEvent );
 
     /**
-     * Clear the current selection
-     * @param aEvent - Tool event
-     */
-    int ClearSelection( const TOOL_EVENT& aEvent );
-
-    /**
      * Select all visible items in the schematic
      * @param aEvent - Tool event
      */
     int SelectAll( const TOOL_EVENT& aEvent );
-
-    /**
-     * Get the current selection
-     * @return Reference to the current selection
-     */
-    SELECTION& GetSelection() { return m_selection; }
 
     /**
      * Set the context menu for the selection tool
@@ -138,45 +127,7 @@ public:
      */
     int ContextMenu( const TOOL_EVENT& aEvent );
 
-private:
-    /**
-     * Add an item to the selection
-     * @param aItem - Item to add
-     * @param aQuietMode - True to suppress visual feedback
-     */
-    void AddItemToSel( EDA_ITEM* aItem, bool aQuietMode = false );
-
-    /**
-     * Remove an item from the selection
-     * @param aItem - Item to remove
-     * @param aQuietMode - True to suppress visual feedback
-     */
-    void RemoveItemFromSel( EDA_ITEM* aItem, bool aQuietMode = false );
-
-    /**
-     * Clear current selection
-     * @param aQuietMode - True to suppress visual feedback
-     */
-    void ClearSelection( bool aQuietMode = false );
-
-    /**
-     * Initialize the selection from a collection of items
-     * @param aItems - Collection of items to select
-     */
-    void SelectItems( std::vector<EDA_ITEM*>& aItems );
-
-    /**
-     * Highlight selected items
-     */
-    void HighlightSelection();
-
-    /**
-     * Check if a point is contained within any selected item
-     * @param aPosition - Point to check
-     * @return True if the point is within a selected item
-     */
-    bool ContainsPoint( const VECTOR2I& aPosition );
-
+protected:
     /**
      * Handle click on an item
      * @param aPosition - Current cursor position
@@ -192,13 +143,10 @@ private:
      */
     EDA_ITEM* disambiguateItem( const std::vector<EDA_ITEM*>& aItems, const VECTOR2I& aPosition );
 
+private:
     // Private members
     CHEM_EDIT_FRAME*  m_frame;
-    SELECTION         m_selection;        ///< Current selection
     TOOL_MENU*        m_menu;             ///< Context menu
-    bool              m_additive;         ///< Flag for additive selection
-    bool              m_subtractive;      ///< Flag for subtractive selection
-    bool              m_multiple;         ///< Flag for multiple selection
     VECTOR2I          m_dragStartPos;     ///< Start position of drag selection
     bool              m_skipMenuEvent;    ///< Flag to skip menu events
 };

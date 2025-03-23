@@ -81,6 +81,7 @@ enum KICAD_T
     TYPE_NOT_INIT = 0,
     PCB_T,
     SCREEN_T, ///< not really an item, used to identify a screen
+    
 
     // Items in pcb
     PCB_FOOTPRINT_T,         ///< class FOOTPRINT, a footprint
@@ -199,6 +200,7 @@ enum KICAD_T
 
     // General
     SCH_SCREEN_T,
+    CHEM_SCREEN_T, ///< chemical schematic screen
 
     SCHEMATIC_T,
 
@@ -243,11 +245,7 @@ enum KICAD_T
     CHEM_SHEET_T,            ///< class CHEM_SHEET, a sheet in the chemical editor
     CHEM_JUNCTION_T,         ///< class CHEM_JUNCTION, a junction in the chemical editor
     CHEM_LABEL_T,            ///< class CHEM_LABEL, a label in the chemical editor
-    CHEM_SCREEN_T,           ///< class CHEM_SCREEN, a screen in the chemical editor
-    CHEM_ITEM_LIST_T,        ///< class CHEM_ITEM_LIST, a list of chemical items
-    
 
-    
     // End value
     MAX_STRUCT_TYPE_ID
 };
